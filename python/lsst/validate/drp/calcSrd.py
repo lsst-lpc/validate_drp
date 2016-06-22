@@ -20,10 +20,7 @@
 
 from __future__ import print_function, division, absolute_import
 
-import math
-
 import numpy as np
-import scipy.stats
 
 import lsst.pipe.base as pipeBase
 
@@ -31,6 +28,9 @@ from .base import ValidateErrorNoStars
 from .util import averageRaFromCat, averageDecFromCat
 from .srdSpec import srdSpec, getAstrometricSpec
 from .io import ParametersSerializerBase, MetricSerializer, DatumSerializer
+from .utils import (
+    getRandomDiffRmsInMas, computeWidths, radiansToMilliarcsec,
+    arcminToRadians, sphDist, matchVisitComputeDistance)
 
 
 def calcPA1(matches, magKey, numRandomShuffles=50, verbose=False):
@@ -328,181 +328,6 @@ class PF1Serializer(MetricSerializer):
             description='Fraction of measurements more than PA2')
 
 
-def getRandomDiffRmsInMas(array):
-    """Calculate the RMS difference in mmag between a random pairs of magnitudes.
-
-    Input
-    -----
-    array : list or np.array
-        Magnitudes from which to select the pair  [mag]
-
-    Returns
-    -------
-    float
-        RMS difference
-
-    Notes
-    -----
-    The LSST SRD recommends computing repeatability from a histogram of
-    magnitude differences for the same star measured on two visits
-    (using a median over the magDiffs to reject outliers).
-    Because we have N>=2 measurements for each star, we select a random
-    pair of visits for each star.  We divide each difference by sqrt(2)
-    to obtain RMS about the (unknown) mean magnitude,
-    instead of obtaining just the RMS difference.
-
-    See Also
-    --------
-    getRandomDiff : Get the difference
-
-    Examples
-    --------
-    >>> mag = [24.2, 25.5]
-    >>> rms = getRandomDiffRmsInMas(mag)
-    >>> print(rms)
-    212.132034
-    """
-    # For scalars, math.sqrt is several times faster than numpy.sqrt.
-    return (1000/math.sqrt(2)) * getRandomDiff(array)
-
-
-def getRandomDiff(array):
-    """Get the difference between two randomly selected elements of an array.
-
-    Input
-    -----
-    array : list or np.array
-
-    Returns
-    -------
-    float or int
-        Difference between two random elements of the array.
-
-    Notes
-    -----
-    * As implemented the returned value is the result of subtracting
-        two elements of the input array.  In all of the imagined uses
-        that's going to be a scalar (float, maybe int).
-        In principle, however the code as implemented returns the result
-        of subtracting two elements of the array, which could be any
-        arbitrary object that is the result of the subtraction operator
-        applied to two elements of the array.
-    * This is not the most efficient way to extract a pair,
-        but it's the easiest to write.
-    * Shuffling works correctly for low N (even N=2), where a naive
-        random generation of entries would result in duplicates.
-    * In principle it might be more efficient to shuffle the indices,
-        then extract the difference.  But this probably only would make a
-        difference for arrays whose elements were objects that were
-        substantially larger than a float.  And that would only make
-        sense for objects that had a subtraction operation defined.
-    """
-    copy = array.copy()
-    np.random.shuffle(copy)
-    return copy[0] - copy[1]
-
-
-def computeWidths(array):
-    """Compute the RMS and the scaled inter-quartile range of an array.
-
-    Input
-    -----
-    array : list or np.array
-
-    Returns
-    -------
-    float, float
-        RMS and scaled inter-quartile range (IQR).
-
-    Notes
-    -----
-    We estimate the width of the histogram in two ways:
-       using a simple RMS,
-       using the interquartile range (IQR)
-    The IQR is scaled by the IQR/RMS ratio for a Gaussian such that it
-       if the array is Gaussian distributed, then the scaled IQR = RMS.
-    """
-    rmsSigma = math.sqrt(np.mean(array**2))
-    iqrSigma = np.subtract.reduce(np.percentile(array, [75, 25])) / (scipy.stats.norm.ppf(0.75)*2)
-    return rmsSigma, iqrSigma
-
-
-def sphDist(ra1, dec1, ra2, dec2):
-    """Calculate distance on the surface of a unit sphere.
-
-    Input and Output are in radians.
-
-    Notes
-    -----
-    Uses the Haversine formula to preserve accuracy at small angles.
-
-    Law of cosines approach doesn't work well for the typically very small
-    differences that we're looking at here.
-    """
-    # Haversine
-    dra = ra1-ra2
-    ddec = dec1-dec2
-    a = np.square(np.sin(ddec/2)) + \
-        np.cos(dec1)*np.cos(dec2)*np.square(np.sin(dra/2))
-    dist = 2 * np.arcsin(np.sqrt(a))
-
-    # This is what the law of cosines would look like
-#    dist = np.arccos(np.sin(dec1)*np.sin(dec2) + np.cos(dec1)*np.cos(dec2)*np.cos(ra1 - ra2))
-
-    # Could use afwCoord.angularSeparation()
-    #  but (a) that hasn't been made accessible through the Python interface
-    #  and (b) I'm not sure that it would be faster than the numpy interface.
-    #    dist = afwCoord.angularSeparation(ra1-ra2, dec1-dec2, np.cos(dec1), np.cos(dec2))
-
-    return dist
-
-
-def matchVisitComputeDistance(visit_obj1, ra_obj1, dec_obj1,
-                              visit_obj2, ra_obj2, dec_obj2):
-    """Calculate obj1-obj2 distance for each visit in which both objects are seen.
-
-    For each visit shared between visit_obj1 and visit_obj2,
-    calculate the spherical distance between the obj1 and obj2.
-
-    Parameters
-    ----------
-    visit_obj1 : scalar, list, or numpy.array of int or str
-        List of visits for object 1.
-    ra_obj1 : scalar, list, or numpy.array of float
-        List of RA in each visit for object 1.
-    dec_obj1 : scalar, list or numpy.array of float
-        List of Dec in each visit for object 1.
-    visit_obj2 : list or numpy.array of int or str
-        List of visits for object 2.
-    ra_obj2 : list or numpy.array of float
-        List of RA in each visit for object 2.
-    dec_obj2 : list or numpy.array of float
-        List of Dec in each visit for object 2.
-
-    Results
-    -------
-    list of float
-        spherical distances (in radians) for matching visits.
-    """
-    distances = []
-    for i in range(len(visit_obj1)):
-        for j in range(len(visit_obj2)):
-            if (visit_obj1[i] == visit_obj2[j]):
-                if np.isfinite([ra_obj1[i], dec_obj1[i],
-                                ra_obj2[j], dec_obj2[j]]).all():
-                    distances.append(sphDist(ra_obj1[i], dec_obj1[i],
-                                             ra_obj2[j], dec_obj2[j]))
-    return distances
-
-
-def arcminToRadians(arcmin):
-    return np.deg2rad(arcmin/60)
-
-
-def radiansToMilliarcsec(rad):
-    return np.rad2deg(rad)*3600*1000
-
-
 def calcAM1(*args, **kwargs):
     """Calculate the SRD definition of astrometric performance for AM1
 
@@ -742,7 +567,9 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     groupViewInMagRange = groupView.where(magInRange)
 
     # List of lists of id, importantValue
-    matchKeyOutput = [obj.get(key) for key in importantKeys for obj in groupViewInMagRange.groups]
+    matchKeyOutput = [obj.get(key)
+                      for key in importantKeys
+                      for obj in groupViewInMagRange.groups]
 
     jump = len(groupViewInMagRange)
 
@@ -760,13 +587,16 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     rmsDistances = list()
     for obj1, (ra1, dec1, visit1) in enumerate(zip(meanRa, meanDec, visit)):
         dist = sphDist(ra1, dec1, meanRa[obj1+1:], meanDec[obj1+1:])
-        objectsInAnnulus, = np.where((annulusRadians[0] <= dist) & (dist < annulusRadians[1]))
+        objectsInAnnulus, = np.where((annulusRadians[0] <= dist) &
+                                     (dist < annulusRadians[1]))
         for obj2 in objectsInAnnulus:
-            distances = matchVisitComputeDistance(visit[obj1], ra[obj1], dec[obj1],
-                                                  visit[obj2], ra[obj2], dec[obj2])
+            distances = matchVisitComputeDistance(
+                visit[obj1], ra[obj1], dec[obj1],
+                visit[obj2], ra[obj2], dec[obj2])
             if not distances:
                 if verbose:
-                    print("No matching visits found for objs: %d and %d" % (obj1, obj2))
+                    print("No matching visits found for objs: %d and %d" %
+                          (obj1, obj2))
                 continue
 
             finiteEntries, = np.where(np.isfinite(distances))

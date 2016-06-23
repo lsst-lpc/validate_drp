@@ -24,7 +24,6 @@ from scipy.optimize import curve_fit
 import numpy as np
 
 import lsst.afw.geom as afwGeom
-import lsst.pipe.base as pipeBase
 import lsst.afw.image as afwImage
 import lsst.afw.image.utils as afwImageUtils
 import lsst.daf.persistence as dafPersist
@@ -330,6 +329,194 @@ class MatchedMultiVisitDataset(BlobBase):
         self.safeMatches = safeMatches
 
 
+class AnalyticPhotometryModel(BlobSerializerBase):
+    """Serializable analytic photometry error model for multi-visit catalogs.
+
+    Parameters
+    ----------
+    matchedMultiVisitDataset : `MatchedMultiVisitDataset`
+        A dataset containing matched statistics for stars across multiple
+        visits.
+    brightSnr : float, optional
+        Minimum SNR for a star to be considered "bright".
+    medianRef : float, optional
+        Median reference astrometric scatter in millimagnitudes
+    matchRef : int, optional
+        Should match at least matchRef stars.
+
+    Attributes
+    ----------
+    sigmaSys
+    gamma
+    m5
+    photRms
+
+    Notes
+    -----
+    The scatter and match defaults are appropriate to SDSS are stored here.
+    For SDSS, stars with mag < 19.5 should be completely well measured.
+    This limit is a band-dependent statement most appropriate to r.
+    """
+    def __init__(self, matchedMultiVisitDataset, brightSnr=100, medianRef=100,
+                 matchRef=500):
+        BlobSerializerBase.__init__(self)
+
+        self._doc['doc'] \
+            = "Photometric uncertainty model from " \
+              "http://arxiv.org/abs/0805.2366v4 (Eq 4, 5): " \
+              "sigma_1^2 = sigma_sys^2 + sigma_rand^2, " \
+              "sigma_rand^2 = (0.04 - gamma) * x + gamma * x^2 [mag^2] " \
+              "where x = 10**(0.4*(m-m_5))"
+
+        self._compute(
+            matchedMultiVisitDataset.snr,
+            matchedMultiVisitDataset.mag,
+            matchedMultiVisitDataset.magerr * 1000.,
+            matchedMultiVisitDataset.magrms * 1000.,
+            matchedMultiVisitDataset.dist,
+            brightSnr,
+            medianRef,
+            matchRef)
+
+    @property
+    def schema(self):
+        return 'multi-visit-photometry-model-v1.0.0'
+
+    @property
+    def sigmaSys(self):
+        return self._doc['sigmaSys'].value
+
+    @property
+    def gamma(self):
+        return self._doc['gamma'].value
+
+    @property
+    def m5(self):
+        return self._doc['m5'].value
+
+    @property
+    def photRms(self):
+        return self._doc['phot_rms'].value
+
+    def _compute(self, snr, mag, mmagErr, mmagrms, dist, match,
+                 brightSnr=100,
+                 medianRef=100, matchRef=500):
+        bright = np.where(np.asarray(snr) > brightSnr)
+        photScatter = np.median(np.asarray(mmagrms)[bright])
+        print("Photometric scatter (median) - SNR > %.1f : %.1f %s" %
+              (brightSnr, photScatter, "mmag"))
+
+        fit_params = fitPhotErrModel(mag[bright], mmagErr[bright])
+
+        if photScatter > medianRef:
+            print('Median photometric scatter %.3f %s is larger than '
+                  'reference : %.3f %s '
+                  % (photScatter, "mmag", medianRef, "mag"))
+        if match < matchRef:
+            print("Number of matched sources %d is too small (shoud be > %d)"
+                  % (match, matchRef))
+
+        self._doc['sigmaSys'] = DatumSerializer(
+            fit_params['sigmaSys'],
+            'mag',
+            label='sigma(sys)',
+            description='Systematic error floor')
+        self._doc['gamma'] = DatumSerializer(
+            fit_params['gamma'],
+            None,
+            label='gamma',
+            description='Proxy for sky brightness and read noise')
+        self._doc['m5'] = DatumSerializer(
+            fit_params['m5'],
+            'mag',
+            label='m5',
+            description='5-sigma depth')
+        self._doc['phot_rms'] = DatumSerializer(
+            photScatter,
+            'millimag',
+            label='RMS',
+            description='RMS photometric scatter for good stars')
+
+
+class AnalyticAstrometryModel(BlobSerializerBase):
+    """Serializable model of astronometry errors across multiple visits.
+
+    Parameters
+    ----------
+    matchedMultiVisitDataset : `MatchedMultiVisitDataset`
+        A dataset containing matched statistics for stars across multiple
+        visits.
+    brightSnr : float, optional
+        Minimum SNR for a star to be considered "bright".
+    medianRef : float, optional
+        Median reference astrometric scatter in millimagnitudes
+    matchRef : int, optional
+        Should match at least matchRef stars.
+
+    Notes
+    -----
+    The scatter and match defaults are appropriate to SDSS are the defaults
+      for `medianRef` and `matchRef`
+    For SDSS, stars with mag < 19.5 should be completely well measured.
+    """
+    def __init__(self, matchedMultiVisitDataset, brightSnr=100,
+                 medianRef=100, matchRef=500):
+        BlobSerializerBase.__init__(self)
+
+        self._doc['doc'] \
+            = "Astrometric uncertainty model: mas = C*theta/SNR + sigmaSys"
+
+        self._compute(
+            matchedMultiVisitDataset.snr,
+            matchedMultiVisitDataset.dist,
+            len(matchedMultiVisitDataset.goodMatches))
+
+    @property
+    def schema(self):
+        return 'multi-visit-photometry-model-v1.0.0'
+
+    def _compute(self, snr, dist, match,
+                 brightSnr=100,
+                 medianRef=100, matchRef=500):
+        print('Median value of the astrometric scatter - all magnitudes: '
+              '%.3f %s' % (np.median(dist), "mas"))
+
+        bright = np.where(np.asarray(snr) > brightSnr)
+        astromScatter = np.median(np.asarray(dist)[bright])
+        print("Astrometric scatter (median) - snr > %.1f : %.1f %s" %
+              (brightSnr, astromScatter, "mas"))
+
+        fit_params = fitAstromErrModel(snr[bright], dist[bright])
+
+        if astromScatter > medianRef:
+            print('Median astrometric scatter %.1f %s is larger than '
+                  'reference : %.1f %s ' %
+                  (astromScatter, "mas", medianRef, "mas"))
+        if match < matchRef:
+            print("Number of matched sources %d is too small (shoud be > %d)" % (match, matchRef))
+
+        self._doc['C'] = DatumSerializer(
+            fit_params['C'],
+            None,
+            label='C',
+            description='Scaling factor')
+        self._doc['theta'] = DatumSerializer(
+            fit_params['theta'],
+            'milliarcsecond',
+            label='theta',
+            description='Seeing')
+        self._doc['sigmaSys'] = DatumSerializer(
+            fit_params['sigmaSys'],
+            'milliarcsecond',
+            label='sigma(sys)',
+            description='Systematic error floor')
+        self._doc['astrom_rms'] = DatumSerializer(
+            astromScatter,
+            'milliarcsecond',
+            label='RMS',
+            description='Astrometric scatter (RMS) for good stars')
+
+
 def isExtended(source, extendedKey, extendedThreshold=1.0):
     """Is the source extended attribute above the threshold.
 
@@ -456,134 +643,6 @@ def positionRms(cat):
     pos_rms = afwGeom.radToMas(pos_rms)  # milliarcsec
 
     return pos_rms
-
-
-def checkAstrometry(snr, dist, match,
-                    brightSnr=100,
-                    medianRef=100, matchRef=500):
-    """Print out the astrometric scatter for all stars, and for good stars.
-
-    Parameters
-    ----------
-    snr : list or numpy.array
-        Average PSF flux SNR of each star
-    dist : list or numpy.array
-        Distances between successive measurements of one star
-    match : int
-        Number of stars matched.
-
-    brightSnr : float, optional
-        Minimum average brightness (in magnitudes) for a star to be considered.
-    medianRef : float, optional
-        Median reference astrometric scatter in milliarcseconds.
-    matchRef : int, optional
-        Should match at least matchRef stars.
-
-    Returns
-    -------
-    pipeBase.Struct
-        name -- str: "checkAstrometry"
-        model_name -- str: "astromErrModel"
-        doc -- str: Description of astrometric error model
-        params -- dict: Fit parameters as "name": value.
-        astromRmsScatter -- float:
-           The astrometric scatter (RMS, milliarcsec) for all good stars.
-
-    Notes
-    -----
-    The scatter and match defaults are appropriate to SDSS are the defaults
-      for `medianRef` and `matchRef`
-    For SDSS, stars with mag < 19.5 should be completely well measured.
-    """
-
-    print("Median value of the astrometric scatter - all magnitudes: %.3f %s" %
-          (np.median(dist), "mas"))
-
-    bright = np.where(np.asarray(snr) > brightSnr)
-    astromScatter = np.median(np.asarray(dist)[bright])
-    print("Astrometric scatter (median) - snr > %.1f : %.1f %s" %
-          (brightSnr, astromScatter, "mas"))
-
-    fit_params = fitAstromErrModel(snr[bright], dist[bright])
-
-    if astromScatter > medianRef:
-        print("Median astrometric scatter %.1f %s is larger than reference : %.1f %s " %
-              (astromScatter, "mas", medianRef, "mas"))
-    if match < matchRef:
-        print("Number of matched sources %d is too small (shoud be > %d)" % (match, matchRef))
-
-    return pipeBase.Struct(name="checkAstrometry",
-                           model_name="astromErrModel",
-                           doc=astromErrModel.__doc__,
-                           params=fit_params,
-                           astromRmsScatter=astromScatter)
-
-
-def checkPhotometry(snr, mag, mmagErr, mmagrms, dist, match,
-                    brightSnr=100,
-                    medianRef=100, matchRef=500):
-    """Print out the astrometric scatter for all stars, and for good stars.
-
-    Parameters
-    ----------
-    snr : list or numpy.array
-        Median SNR of PSF flux
-    mag : list or numpy.array
-        Average magnitudes of each star.  [mag]
-    mmagErr : list or numpy.array
-        Uncertainties in magnitudes of each star.  [mmag]
-    mmagrms : list or numpy.array
-        Magnitude RMS of the multiple observation of each star. [mmag]
-    dist : list or numpy.array
-        Distances between successive measurements of one star
-    match : int
-        Number of stars matched.
-    brightSnr : float, optional
-        Minimum SNR for a star to be considered "bright".
-    medianRef : float, optional
-        Median reference astrometric scatter in millimagnitudes
-    matchRef : int, optional
-        Should match at least matchRef stars.
-
-    Returns
-    -------
-    pipeBase.Struct
-        name -- str: "checkPhotometry"
-        model_name -- str:  "photErrModel"
-        doc -- str: Description of photometric error model
-        params -- dict: Fit parameters as "name": value.
-        photRmsScatter -- float:
-            The photometric scatter (RMS, mmag) for all good star stars.
-
-    Notes
-    -----
-    The scatter and match defaults are appropriate to SDSS are stored here.
-    For SDSS, stars with mag < 19.5 should be completely well measured.
-    This limit is a band-dependent statement most appropriate to r.
-    """
-
-    print("Median value of the photometric scatter - all magnitudes: %.3f %s" %
-          (np.median(mmagrms), "mmag"))
-
-    bright = np.where(np.asarray(snr) > brightSnr)
-    photScatter = np.median(np.asarray(mmagrms)[bright])
-    print("Photometric scatter (median) - SNR > %.1f : %.1f %s" %
-          (brightSnr, photScatter, "mmag"))
-
-    fit_params = fitPhotErrModel(mag[bright], mmagErr[bright])
-
-    if photScatter > medianRef:
-        print("Median photometric scatter %.3f %s is larger than reference : %.3f %s "
-              % (photScatter, "mmag", medianRef, "mag"))
-    if match < matchRef:
-        print("Number of matched sources %d is too small (shoud be > %d)"
-              % (match, matchRef))
-
-    return pipeBase.Struct(name="checkPhotometry",
-                           model_name="photErrModel",
-                           doc=photErrModel.__doc__,
-                           params=fit_params,
-                           photRmsScatter=photScatter)
 
 
 def astromErrModel(snr, theta=1000, sigmaSys=10, C=1, **kwargs):

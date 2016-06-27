@@ -167,6 +167,131 @@ class Datum(JsonSerializationMixin):
         self._doc['description'] = value
 
 
+class Metric(JsonSerializationMixin):
+    """Docstring for Metric. """
+    def __init__(self, name, description, operatorStr, specs=None,
+                 referenceDoc=None, referenceUrl=None, referencePage=None):
+        self.name = name
+        self.description = description
+        self.referenceDoc = referenceDoc
+        self.referenceUrl = referenceUrl
+        self.referencePage = referencePage
+
+        self._operatorStr = operatorStr
+        self.operator = Metric.convertOperatorStr(operatorStr)
+
+        if specs is None:
+            self.specs = []
+        else:
+            self.specs = specs
+
+    def fromYamlDoc(self, yamlDoc, metricName, resolveDependencies=True):
+        metricDoc = dict(yamlDoc[metricName])
+
+        m = Metric(
+            metricName,
+            description=metricDoc.pop('description'),
+            operatorStr=metricDoc.pop('operatorStr'),
+            referenceDoc=metricDoc['reference'].pop('doc'),
+            referenceUrl=metricDoc['reference'].pop('url'),
+            referencePage=metricDoc['reference'].pop('page'))
+
+        for specDoc in metricDoc['specs']:
+            if 'dependencies' in specDoc and resolveDependencies:
+                deps = {}
+                for depItem in specDoc['dependencies']:
+                    if isinstance(depItem, basestring):
+                        # This is a metric
+                        name = depItem
+                        d = Metric.fromYamlDoc(yamlDoc, depItem,
+                                               resolveDependencies=False)
+                    elif isinstance(depItem, dict):
+                        # Likely a Datum
+                        # in yaml, wrapper object is dict with single key-val
+                        name = depItem.keys()[0]
+                        depItem = dict(depItem[name])
+                        v = depItem.pop('value')
+                        units = depItem.pop('units')
+                        d = Datum(v, units, **depItem)
+                    else:
+                        raise RuntimeError(
+                            'Cannot process dependency %r' % depItem)
+                    deps[d.name] = d
+            spec = Specification(name=depItem.pop('level'),
+                                 value=depItem.pop('value'),
+                                 units=depItem.pop('units'),
+                                 filters=depItem.pop('filters'),
+                                 dependencies=deps)
+            m.specs.append(spec)
+
+    def getSpec(self, name, bandpass=None):
+        """Get a specification by name, and other qualitifications."""
+        candidates = []
+
+        # First collect candidate specifications by name
+        for spec in self.specs:
+            if spec.name == name:
+                candidates.append(spec)
+        if len(candidates) == 1:
+            return candidates[0]
+
+        # Filter down by bandpass
+        if bandpass is not None:
+            for spec in candidates:
+                if hasattr(spec, 'bandpasses') and bandpass not in spec:
+                    candidates.remove(spec)
+        if len(candidates) == 1:
+            return candidates[0]
+
+        raise RuntimeError(
+            'No spec found for name={0} bandpass={1}'.format(name, bandpass))
+
+    def checkSpec(self, value, specName, bandpass=None):
+        """Compare a measurement `value` against a named specification level
+        (:class:`SpecLevel`).
+
+        Returns
+        -------
+        passed : bool
+            `True` if a value meets the specification, `False` otherwise.
+        """
+        spec = self.getSpec(specName, bandpass=None)
+
+        # NOTE: assumes units are the same
+        return self.operator(value, spec.value)
+
+    @property
+    def json(self):
+        """Render metric as a JSON object (`dict`)."""
+        return JsonSerializationMixin.jsonify_dict({
+            'name': self.name,
+            'reference': self.referenceDoc,
+            'description': self.description,
+            'specifications': self.specs})
+
+
+class Specification(JsonSerializationMixin):
+    """A specification level or threshold associated with a Metric."""
+    def __init__(self, name, value, units, bandpasses=None, dependencies=None):
+        self.name = name
+        self.value = value
+        self.units = units
+        self.bandpasses = bandpasses
+        self.dependencies = dependencies
+
+    def __getattr__(self, key):
+        """Access dependencies with keys as attributes."""
+        return self.dependencies[key]
+
+    @property
+    def json(self):
+        return JsonSerializationMixin.jsonify_dict({
+            'name': self.level,
+            'value': Datum(self.value, self.units),
+            'filters': self.bandpasses,
+            'dependencies': self.dependencies})
+
+
 class MetricBase(JsonSerializationMixin):
     """Baseclass for Metric definition classes."""
     __metaclass__ = abc.ABCMeta

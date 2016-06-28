@@ -204,7 +204,7 @@ class Metric(JsonSerializationMixin):
         self.referencePage = referencePage
 
         self._operatorStr = operatorStr
-        self.operator = Metric.convertOperatorStr(operatorStr)
+        self.operator = Metric.convertOperatorString(operatorStr)
 
         if specs is None:
             self.specs = []
@@ -244,12 +244,13 @@ class Metric(JsonSerializationMixin):
         m = cls(
             metricName,
             description=metricDoc.pop('description'),
-            operatorStr=metricDoc.pop('operatorStr'),
+            operatorStr=metricDoc.pop('operator'),
             referenceDoc=metricDoc['reference'].pop('doc'),
             referenceUrl=metricDoc['reference'].pop('url'),
             referencePage=metricDoc['reference'].pop('page'))
 
         for specDoc in metricDoc['specs']:
+            deps = None
             if 'dependencies' in specDoc and resolveDependencies:
                 deps = {}
                 for depItem in specDoc['dependencies']:
@@ -270,17 +271,17 @@ class Metric(JsonSerializationMixin):
                         raise RuntimeError(
                             'Cannot process dependency %r' % depItem)
                     deps[d.name] = d
-            spec = Specification(name=depItem.pop('level'),
-                                 value=depItem.pop('value'),
-                                 units=depItem.pop('units'),
-                                 filters=depItem.pop('filters'),
+            spec = Specification(name=specDoc.pop('level'),
+                                 value=specDoc.pop('value'),
+                                 units=specDoc.pop('units'),
+                                 bandpasses=specDoc.pop('filters'),
                                  dependencies=deps)
             m.specs.append(spec)
 
         return m
 
     @staticmethod
-    def convertOperatorString(self, opStr):
+    def convertOperatorString(opStr):
         """Convert a string representing a binary comparison operator to
         an operator function itself.
 

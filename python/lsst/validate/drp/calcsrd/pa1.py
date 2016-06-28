@@ -35,6 +35,8 @@ class PA1Measurement(MeasurementBase):
     Parameters
     ----------
     matchedDataset : lsst.validate.drp.matchreduce.MatchedMultiVisitDataset
+    bandpass : str
+        Bandpass (filter name) used in this measurement (e.g., `'r'`)
     numRandomShuffles : int
         Number of times to draw random pairs from the different observations.
     verbose : bool, optional

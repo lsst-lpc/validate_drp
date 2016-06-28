@@ -426,6 +426,7 @@ class MeasurementBase(JsonSerializationMixin):
     def __init__(self):
         self._linkedBlobs = []
         self._params = {}
+        self._params['spec_name'] = None
 
     def linkBlob(self, blob):
         """Add a blob so that it will be linked to this measurement in
@@ -467,6 +468,14 @@ class MeasurementBase(JsonSerializationMixin):
         """A `str` identifying the schema of this measurement and parameters.
         """
         pass
+
+    @property
+    def specName(self):
+        """A `str` identifying the specification level (e.g., design, minimum
+        stretch) that this measurement represents. `None` if this measurement
+        applies to all specification levels.
+        """
+        return self._params['spec_name']
 
     @property
     def json(self):

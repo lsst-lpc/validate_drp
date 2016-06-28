@@ -373,7 +373,7 @@ class Metric(JsonSerializationMixin):
         passed : bool
             `True` if a value meets the specification, `False` otherwise.
         """
-        spec = self.getSpec(specName, bandpass=None)
+        spec = self.getSpec(specName, bandpass=bandpass)
 
         # NOTE: assumes units are the same
         return self.operator(value, spec.value)

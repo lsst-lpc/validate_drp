@@ -364,6 +364,30 @@ class Metric(JsonSerializationMixin):
         raise RuntimeError(
             'No spec found for name={0} bandpass={1}'.format(name, bandpass))
 
+    def getSpecNames(self, bandpass=None):
+        """List names of all specification levels defined for this metric;
+        optionally filtering by attributes such as bandpass.
+
+        Parameters
+        ----------
+        bandpass : str, optional
+            Name of the applicable filter, if needed.
+
+        Returns
+        -------
+        specNames : list
+            Specific names as a list of strings,
+            e.g. ``['design', 'minimum', 'stretch']``.
+        """
+        specNames = []
+
+        for spec in self.specs:
+            if bandpass is not None and bandpass not in spec.bandpasses:
+                continue
+            specNames.append(spec.name)
+
+        return list(set(specNames))
+
     def checkSpec(self, value, specName, bandpass=None):
         """Compare a measurement `value` against a named specification level
         (:class:`SpecLevel`).

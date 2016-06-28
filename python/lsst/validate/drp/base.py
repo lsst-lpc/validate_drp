@@ -258,8 +258,8 @@ class Metric(JsonSerializationMixin):
                     if isinstance(depItem, basestring):
                         # This is a metric
                         name = depItem
-                        d = Metric.fromYamlDoc(yamlDoc, depItem,
-                                               resolveDependencies=False)
+                        d = Metric.fromYaml(name, yamlDoc=yamlDoc,
+                                            resolveDependencies=False)
                     elif isinstance(depItem, dict):
                         # Likely a Datum
                         # in yaml, wrapper object is dict with single key-val

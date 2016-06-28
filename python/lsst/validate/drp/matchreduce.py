@@ -329,7 +329,7 @@ class MatchedMultiVisitDataset(BlobBase):
         self.safeMatches = safeMatches
 
 
-class AnalyticPhotometryModel(BlobSerializerBase):
+class AnalyticPhotometryModel(BlobBase):
     """Serializable analytic photometry error model for multi-visit catalogs.
 
     Parameters
@@ -359,7 +359,7 @@ class AnalyticPhotometryModel(BlobSerializerBase):
     """
     def __init__(self, matchedMultiVisitDataset, brightSnr=100, medianRef=100,
                  matchRef=500):
-        BlobSerializerBase.__init__(self)
+        BlobBase.__init__(self)
 
         self._doc['doc'] \
             = "Photometric uncertainty model from " \
@@ -416,29 +416,29 @@ class AnalyticPhotometryModel(BlobSerializerBase):
             print("Number of matched sources %d is too small (shoud be > %d)"
                   % (match, matchRef))
 
-        self._doc['sigmaSys'] = DatumSerializer(
+        self._doc['sigmaSys'] = Datum(
             fit_params['sigmaSys'],
             'mag',
             label='sigma(sys)',
             description='Systematic error floor')
-        self._doc['gamma'] = DatumSerializer(
+        self._doc['gamma'] = Datum(
             fit_params['gamma'],
             None,
             label='gamma',
             description='Proxy for sky brightness and read noise')
-        self._doc['m5'] = DatumSerializer(
+        self._doc['m5'] = Datum(
             fit_params['m5'],
             'mag',
             label='m5',
             description='5-sigma depth')
-        self._doc['phot_rms'] = DatumSerializer(
+        self._doc['phot_rms'] = Datum(
             photScatter,
             'millimag',
             label='RMS',
             description='RMS photometric scatter for good stars')
 
 
-class AnalyticAstrometryModel(BlobSerializerBase):
+class AnalyticAstrometryModel(BlobBase):
     """Serializable model of astronometry errors across multiple visits.
 
     Parameters
@@ -461,7 +461,7 @@ class AnalyticAstrometryModel(BlobSerializerBase):
     """
     def __init__(self, matchedMultiVisitDataset, brightSnr=100,
                  medianRef=100, matchRef=500):
-        BlobSerializerBase.__init__(self)
+        BlobBase.__init__(self)
 
         self._doc['doc'] \
             = "Astrometric uncertainty model: mas = C*theta/SNR + sigmaSys"
@@ -495,22 +495,22 @@ class AnalyticAstrometryModel(BlobSerializerBase):
         if match < matchRef:
             print("Number of matched sources %d is too small (shoud be > %d)" % (match, matchRef))
 
-        self._doc['C'] = DatumSerializer(
+        self._doc['C'] = Datum(
             fit_params['C'],
             None,
             label='C',
             description='Scaling factor')
-        self._doc['theta'] = DatumSerializer(
+        self._doc['theta'] = Datum(
             fit_params['theta'],
             'milliarcsecond',
             label='theta',
             description='Seeing')
-        self._doc['sigmaSys'] = DatumSerializer(
+        self._doc['sigmaSys'] = Datum(
             fit_params['sigmaSys'],
             'milliarcsecond',
             label='sigma(sys)',
             description='Systematic error floor')
-        self._doc['astrom_rms'] = DatumSerializer(
+        self._doc['astrom_rms'] = Datum(
             astromScatter,
             'milliarcsecond',
             label='RMS',

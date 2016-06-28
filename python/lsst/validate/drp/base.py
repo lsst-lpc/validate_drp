@@ -484,7 +484,8 @@ class MeasurementBase(JsonSerializationMixin):
                       'value': self.value,
                       'parameters': self._params,
                       'blobs': self._linkedBlobs,
-                      'schema': self.schema}
+                      'schema': self.schema,
+                      'spec_name': self.specName}
         json_doc = JsonSerializationMixin.jsonify_dict(object_doc)
         return json_doc
 

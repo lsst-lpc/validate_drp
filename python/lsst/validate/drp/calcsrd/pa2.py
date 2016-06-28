@@ -22,28 +22,53 @@ from __future__ import print_function, absolute_import
 
 import numpy as np
 
-import lsst.pipe.base as pipeBase
-
 from ..base import MeasurementBase, Metric
-from .utils import (
-    getRandomDiffRmsInMas, computeWidths, radiansToMilliarcsec,
-    arcminToRadians, sphDist, matchVisitComputeDistance)
+from .utils import getRandomDiffRmsInMas
 
 
 class PA2Measurement(MeasurementBase):
-    """Docstring for PA2Measurement. """
+    """Measurement of PA2: millimag from median RMS (see PA1) containing
+    PF1 of the samples.
+
+    Parameters
+    ----------
+    matchedDataset : lsst.validate.drp.matchreduce.MatchedMultiVisitDataset
+    bandpass : str
+        Bandpass (filter name) used in this measurement (e.g., `'r'`).
+    specName : str
+        Name of a specification level to measure against (e.g., design,
+        minimum, stretch).
+    numRandomShuffles : int
+        Number of times to draw random pairs from the different observations.
+    verbose : bool, optional
+        Output additional information on the analysis steps.
+    linkedBlobs : list, optional
+        A `list` of additional blobs (subclasses of BlobSerializerBase) that
+        can provide additional context to the measurement, though aren't
+        direct dependencies of the computation (e.g., `matchedDataset).
+
+    Notes
+    -----
+    The LSST Science Requirements Document (LPM-17) is commonly referred
+    to as the SRD.  The SRD puts a limit that no more than PF1 % of difference
+    will vary by more than PA2 millimag.  The design, minimum, and stretch
+    goals are PF1 = (10, 20, 5) % at PA2 = (15, 15, 10) millimag following
+    LPM-17 as of 2011-07-06, available at http://ls.st/LPM-17.
+    """
 
     metric = None
     value = None
     units = 'millimag'
     label = 'PA2'
-    schema = 'pa1-1.0.0'
+    schema = 'pa2-1.0.0'
 
-    def __init__(self, matchedDataset, bandpass,
+    # FIXME somehow this isn't depdendent on a median RMS (e.g., PA1 measure)
+    def __init__(self, matchedDataset, bandpass, specName,
                  numRandomShuffles=50, verbose=False,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
         self.bandpass = bandpass
+        self.specName = specName  # spec-dependent measure because of PF1 dep
         self.metric = Metric.fromYaml(self.label,
                                       yamlDoc=metricYamlDoc,
                                       yamlPath=metricYamlPath)
@@ -64,17 +89,8 @@ class PA2Measurement(MeasurementBase):
         matches = matchedDataset.safeMatches
         magKey = matchedDataset.magKey
         magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
-        PF1_percentiles = 100. - np.asarray([srdSpec.PF1[l]
-                                             for l in srdSpec.levels])
-        PA2_measured = dict(zip(srdSpec.levels,
-                                np.percentile(np.abs(magDiffs),
-                                              PF1_percentiles)))
 
-        PF1_measured = {l: 100*np.mean(np.asarray(magDiffs) > srdSpec.PA2[l])
-                        for l in srdSpec.levels}
-
-        return pipeBase.Struct(name='PA2', pa2Units='mmag', pf1Units='%',
-                            PA2=PA2_measured['design'], PF1=PF1_measured['design'],
-                            PA2_measured=PA2_measured,
-                            PF1_measured=PF1_measured,
-                            PF1_spec=srdSpec.PF1, PA2_spec=PA2_spec)
+        # FIXME where is the median RMS in here?
+        pf1Val = self.metric.getSpec('PF1', bandpass=self.bandpass).value
+        pf1Percentile = 100. - pf1Val
+        self.value = np.percentile(np.abs(magDiffs), pf1Percentile)

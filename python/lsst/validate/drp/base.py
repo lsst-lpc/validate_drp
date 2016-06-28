@@ -240,17 +240,18 @@ class Metric(JsonSerializationMixin):
                                         'metrics.yaml')
             with open(yamlPath) as f:
                 yamlDoc = yaml.load(f)
-        metricDoc = dict(yamlDoc[metricName])
+        metricDoc = dict(yamlDoc[metricName])  # because of later pops
 
         m = cls(
             metricName,
-            description=metricDoc.pop('description'),
+            description=metricDoc.pop('description', None),
             operatorStr=metricDoc.pop('operator'),
-            referenceDoc=metricDoc['reference'].pop('doc'),
-            referenceUrl=metricDoc['reference'].pop('url'),
-            referencePage=metricDoc['reference'].pop('page'))
+            referenceDoc=metricDoc['reference'].pop('doc', None),
+            referenceUrl=metricDoc['reference'].pop('url', None),
+            referencePage=metricDoc['reference'].pop('page', None))
 
         for specDoc in metricDoc['specs']:
+            specDoc = dict(specDoc)  # because of later pops
             deps = None
             if 'dependencies' in specDoc and resolveDependencies:
                 deps = {}
@@ -275,7 +276,7 @@ class Metric(JsonSerializationMixin):
             spec = Specification(name=specDoc.pop('level'),
                                  value=specDoc.pop('value'),
                                  units=specDoc.pop('units'),
-                                 bandpasses=specDoc.pop('filters'),
+                                 bandpasses=specDoc.pop('filters', None),
                                  dependencies=deps)
             m.specs.append(spec)
 

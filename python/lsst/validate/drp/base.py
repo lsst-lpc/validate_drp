@@ -158,7 +158,8 @@ class Datum(JsonSerializationMixin):
 
     @label.setter
     def label(self, value):
-        assert isinstance(value, basestring) or None
+        print("datum label", value)
+        assert isinstance(value, basestring) or value is None
         self._doc['label'] = value
 
     @property
@@ -168,7 +169,7 @@ class Datum(JsonSerializationMixin):
 
     @description.setter
     def description(self, value):
-        assert isinstance(value, basestring) or None
+        assert isinstance(value, basestring) or value is None
         self._doc['description'] = value
 
 
@@ -403,7 +404,7 @@ class Specification(JsonSerializationMixin):
     @property
     def json(self):
         return JsonSerializationMixin.jsonify_dict({
-            'name': self.level,
+            'name': self.name,
             'value': Datum(self.value, self.units),
             'filters': self.bandpasses,
             'dependencies': self.dependencies})

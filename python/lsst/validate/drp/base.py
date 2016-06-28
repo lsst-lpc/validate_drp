@@ -21,8 +21,13 @@
 from __future__ import print_function, division
 
 import abc
+import os
+import operator
+import yaml
 import numpy as np
 import astropy.units
+
+from lsst.utils import getPackageDir
 
 
 class ValidateError(Exception):
@@ -168,7 +173,28 @@ class Datum(JsonSerializationMixin):
 
 
 class Metric(JsonSerializationMixin):
-    """Docstring for Metric. """
+    """Container for the definition of a Metric and specification levels.
+
+    Parameters
+    ----------
+    name : str
+        Name of the metric (e.g., PA1).
+    description : str
+        Short description about the metric.
+    operatorStr : str
+        A string, such as `'<='`, that defines a success test for a
+        measurement (on the left hand side) against the metric specification
+        level (right hand side).
+    specs : list, optional
+        A list of `Specification` objects that define various specification
+        levels for this metric.
+    referenceDoc : str, optional
+        The document handle that originally defined the metric (e.g. LPM-17)
+    referenceUrl : str, optional
+        The document's URL.
+    referencePath : str, optional
+        Page where metric in defined in the reference document.
+    """
     def __init__(self, name, description, operatorStr, specs=None,
                  referenceDoc=None, referenceUrl=None, referencePage=None):
         self.name = name
@@ -185,7 +211,33 @@ class Metric(JsonSerializationMixin):
         else:
             self.specs = specs
 
-    def fromYamlDoc(self, yamlDoc, metricName, resolveDependencies=True):
+    def fromYaml(self, metricName, yamlDoc=None, yamlPath=None,
+                 resolveDependencies=True):
+        """Create a `Metric` instance from YAML document that defines
+        metrics.
+
+        Parameters
+        ----------
+        metricName : str
+            Name of the metric (e.g., PA1)
+        yamlDoc : dict, optional
+            The full metrics.yaml file loaded as a `dict`. Use this option
+            to increase performance by eliminating redundant reads of a
+            metrics.yaml file.
+        yamlPath : str, optional
+            The full path to a metrics.yaml file, in case a custom file
+            is being used. The metrics.yaml file included in `validate_drp`
+            is used by default.
+        resolveDependencies : bool, optional
+            If another metric is a *dependency* of this specification level's
+            definition
+        """
+        if yamlDoc is None:
+            if yamlPath is None:
+                yamlPath = os.path.join(getPackageDir('validate_drp'),
+                                        'metrics.yaml')
+            with open(yamlPath) as f:
+                yamlDoc = yaml.load(f)
         metricDoc = dict(yamlDoc[metricName])
 
         m = Metric(
@@ -224,8 +276,68 @@ class Metric(JsonSerializationMixin):
                                  dependencies=deps)
             m.specs.append(spec)
 
+    @staticmethod
+    def convertOperatorString(self, opStr):
+        """Convert a string representing a binary comparison operator to
+        an operator function itself.
+
+        Operators are designed so that the measurement is on the left-hand
+        side, and specification level on the right hand side.
+
+        The following operators are permitted:
+
+        =====  ===========
+        opStr  opFunc
+        =====  ===========
+        >=     operator.ge
+        >      operator.gt,
+        <      operator.lt,
+        <=     operator.le
+        ==     operator.eq
+        !=     operator.ne
+        =====  ===========
+
+        Parameters
+        ----------
+        opStr : str
+            A string representing a binary operator.
+
+        Returns
+        -------
+        opFunc : obj
+            An operator function from the :mod:`operator` standard library
+            module.
+        """
+        operators = {'>=': operator.ge,
+                     '>': operator.gt,
+                     '<': operator.lt,
+                     '<=': operator.le,
+                     '==': operator.eq,
+                     '!=': operator.ne}
+        return operators[opStr]
+
     def getSpec(self, name, bandpass=None):
-        """Get a specification by name, and other qualitifications."""
+        """Get a specification by name, and other qualitifications.
+
+        Parameters
+        ----------
+        name : str
+            Name of a specification level (design, minimum, stretch).
+        bandpass : str, optional
+            The name of the bandpass to qualify a bandpass-dependent
+            specification level.
+
+        Returns
+        -------
+        spec : :class:`Specification`
+            The :class:`Specification` that matches the name and other
+            qualifications.
+
+        Raises
+        ------
+        RuntimeError
+           If a specification cannot be found.
+        """
         candidates = []
 
         # First collect candidate specifications by name
@@ -290,84 +402,6 @@ class Specification(JsonSerializationMixin):
             'value': Datum(self.value, self.units),
             'filters': self.bandpasses,
             'dependencies': self.dependencies})
-
-
-class MetricBase(JsonSerializationMixin):
-    """Baseclass for Metric definition classes."""
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractproperty
-    def name(self):
-        """Name of the metric."""
-        pass
-
-    @abc.abstractproperty
-    def reference(self):
-        """Identifier for document that defines the metric."""
-        pass
-
-    @abc.abstractproperty
-    def description(self):
-        """Short description of the metric."""
-        pass
-
-    @abc.abstractproperty
-    def operator(self):
-        """Function from the `operator` module (e.g.
-        :py:class:`operator.gt`:."""
-        pass
-
-    @abc.abstractproperty
-    def specs(self):
-        """`dict` of :class:`SpecLevel` objects, keyed by role ."""
-        pass
-
-    def checkSpec(self, value, specName):
-        """Compare a measurement `value` against a named specification level
-        (:class:`SpecLevel`).
-
-        Returns
-        -------
-        passed : bool
-            `True` if a value meets the specification, `False` otherwise.
-        """
-        specLevel = self.specs[specName]
-        return self.operator(value, specLevel)
-
-    @property
-    def json(self):
-        """Render metric as a JSON object (`dict`)."""
-        # FIXME add spec_level for dependent metrics
-        # For example, PF1 is dependent on the specification level
-        # to determine PA2.
-        return {
-            'name': self.name,
-            'reference': self.reference,
-            'description': self.description}
-
-
-class SpecLevel(object):
-    """Specification Level definition classes.
-
-    Attributes
-    ----------
-    value : float or int
-        A scalar value that defines a specification threshold level for a
-        Metric.
-    units : str
-        Astropy-compatible unit string annotating a value.
-
-    Parameters
-    ----------
-    value : float or int
-        A scalar value that defines a specification threshold level for a
-        Metric.
-    units : str
-        Astropy-compatible unit string annotating a value.
-    """
-    def __init__(self, value, units):
-        self.value = value
-        self.units = units
 
 
 class MeasurementBase(JsonSerializationMixin):
@@ -438,6 +472,12 @@ class MeasurementBase(JsonSerializationMixin):
                       'schema': self.schema}
         json_doc = JsonSerializationMixin.jsonify_dict(object_doc)
         return json_doc
+
+    def checkSpec(self, name, bandpass=None):
+        """Check this measurement against a specification level `name`, of the
+        metric
+        """
+        return self.metric.checkSpec(self.value, name, bandpass=bandpass)
 
 
 class BlobBase(JsonSerializationMixin):

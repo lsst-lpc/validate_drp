@@ -20,25 +20,12 @@
 
 from __future__ import print_function, absolute_import
 
-import operator
 import numpy as np
 
 import lsst.pipe.base as pipeBase
 
-from ..base import MeasurementBase, MetricBase, SpecLevel
+from ..base import MeasurementBase, Metric
 from ..util import getRandomDiffRmsInMas, computeWidths
-
-
-class PA1Metric(MetricBase):
-    """Definitional object of the PA1 metric, defined in LPM-17."""
-
-    name = 'PA1'
-    reference = 'LPM-17'
-    description = 'Median RMS of visit-to-visit relative photometry.'
-    operator = operator.lt
-    specs = {'design': SpecLevel(5., 'millimag'),
-             'minimum': SpecLevel(8., 'millimag'),
-             'stretch': SpecLevel(3., 'millimag')}
 
 
 class PA1Measurement(MeasurementBase):
@@ -96,9 +83,11 @@ class PA1Measurement(MeasurementBase):
     schema = 'pa1-1.0.0'
 
     def __init__(self, matchedDataset, numRandomShuffles=50, verbose=False,
-                 linkedBlobs=None):
+                 linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
-        self.metric = PA1Metric()
+        self.metric = Metric.fromYaml(self.label,
+                                      yamlDoc=metricYamlDoc,
+                                      yamlPath=metricYamlPath)
 
         # register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately

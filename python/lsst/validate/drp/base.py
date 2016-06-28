@@ -424,6 +424,11 @@ class MeasurementBase(JsonSerializationMixin):
         A `str` identifying the specification level (e.g., design, minimum
         stretch) that this measurement represents. `None` if this measurement
         applies to all specification levels.
+    bandpass : str
+        A `str` identifying the bandpass of observatons this measurement was
+        made from. Defaults to `None` if a measurement is not
+        bandpass-dependent. `bandpass` should be specificed if needed to
+        resolve a bandpass-specific specification.
     """
     __metaclass__ = abc.ABCMeta
 
@@ -431,6 +436,7 @@ class MeasurementBase(JsonSerializationMixin):
         self._linkedBlobs = []
         self._params = {}
         self.specName = None
+        self.bandpass = None
 
     def linkBlob(self, blob):
         """Add a blob so that it will be linked to this measurement in
@@ -481,15 +487,20 @@ class MeasurementBase(JsonSerializationMixin):
                       'parameters': self._params,
                       'blobs': self._linkedBlobs,
                       'schema': self.schema,
-                      'spec_name': self.specName}
+                      'spec_name': self.specName,
+                      'filter': self.bandpass}
         json_doc = JsonSerializationMixin.jsonify_dict(object_doc)
         return json_doc
 
-    def checkSpec(self, name, bandpass=None):
+    def checkSpec(self, name):
         """Check this measurement against a specification level `name`, of the
-        metric
+        metric.
+
+        Internally this method retrieves the Specification object, filtering
+        first by the `name`, but also by this object's `bandpass` attribute
+        if specifications are bandpass-dependent.
         """
-        return self.metric.checkSpec(self.value, name, bandpass=bandpass)
+        return self.metric.checkSpec(self.value, name, bandpass=self.bandpass)
 
 
 class BlobBase(JsonSerializationMixin):

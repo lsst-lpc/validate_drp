@@ -82,9 +82,11 @@ class PA1Measurement(MeasurementBase):
     label = 'PA1'
     schema = 'pa1-1.0.0'
 
-    def __init__(self, matchedDataset, numRandomShuffles=50, verbose=False,
+    def __init__(self, matchedDataset, bandpass,
+                 numRandomShuffles=50, verbose=False,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
+        self.bandpass = bandpass
         self.metric = Metric.fromYaml(self.label,
                                       yamlDoc=metricYamlDoc,
                                       yamlPath=metricYamlPath)

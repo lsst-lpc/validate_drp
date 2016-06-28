@@ -528,9 +528,11 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
 
     measurements = []
 
-    PA1 = PA1Measurement(matchedDataset, verbose=verbose,
+    PA1 = PA1Measurement(matchedDataset, bandpass=filterName, verbose=verbose,
                          linkedBlobs=[photomModel, astromModel])
     measurements.append(PA1)
+    print('filterName', filterName, PA1.bandpass)
+    print('design', PA1.checkSpec('design'), filterName)
 
     job_serializer = JobSerializer(
         measurements=measurements,

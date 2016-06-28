@@ -354,7 +354,8 @@ class Metric(JsonSerializationMixin):
         # Filter down by bandpass
         if bandpass is not None:
             for spec in candidates:
-                if hasattr(spec, 'bandpasses') and bandpass not in spec:
+                if hasattr(spec, 'bandpasses') and \
+                        bandpass not in spec.bandpasses:
                     candidates.remove(spec)
         if len(candidates) == 1:
             return candidates[0]

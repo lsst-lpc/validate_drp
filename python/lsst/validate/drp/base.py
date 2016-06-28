@@ -211,7 +211,8 @@ class Metric(JsonSerializationMixin):
         else:
             self.specs = specs
 
-    def fromYaml(self, metricName, yamlDoc=None, yamlPath=None,
+    @classmethod
+    def fromYaml(cls, metricName, yamlDoc=None, yamlPath=None,
                  resolveDependencies=True):
         """Create a `Metric` instance from YAML document that defines
         metrics.
@@ -240,7 +241,7 @@ class Metric(JsonSerializationMixin):
                 yamlDoc = yaml.load(f)
         metricDoc = dict(yamlDoc[metricName])
 
-        m = Metric(
+        m = cls(
             metricName,
             description=metricDoc.pop('description'),
             operatorStr=metricDoc.pop('operatorStr'),
@@ -275,6 +276,8 @@ class Metric(JsonSerializationMixin):
                                  filters=depItem.pop('filters'),
                                  dependencies=deps)
             m.specs.append(spec)
+
+        return m
 
     @staticmethod
     def convertOperatorString(self, opStr):

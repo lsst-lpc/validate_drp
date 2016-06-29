@@ -498,3 +498,87 @@ def arcminToRadians(arcmin):
 
 def radiansToMilliarcsec(rad):
     return np.rad2deg(rad)*3600*1000
+
+
+def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
+    """Calculate the RMS distance of a set of matched objects over visits.
+
+    Parameters
+    ----------
+    groupView : lsst.afw.table.GroupView
+        GroupView object of matched observations from MultiMatch.
+    annulus : 2-element list or tuple of float
+        Distance range in which to compare object.  [arcmin]
+        E.g., `annulus=[19, 21]` would consider all objects
+        separated from each other between 19 and 21 arcminutes.
+    magRange : 2-element list or tuple of float, optional
+        Magnitude range from which to select objects.
+        Default of `None` will result in all objects being considered.
+    verbose : bool, optional
+        Output additional information on the analysis steps.
+
+    Returns
+    -------
+    list
+        rmsDistMas
+
+    """
+
+    # Default is specified here separately because defaults that are mutable
+    # get overridden by previous calls of the function.
+    if magRange is None:
+        magRange = [17.0, 21.5]
+
+    # First we make a list of the keys that we want the fields for
+    importantKeys = [groupView.schema.find(name).key for
+                     name in ['id', 'coord_ra', 'coord_dec',
+                              'object', 'visit', 'base_PsfFlux_mag']]
+
+    # Includes magRange through closure
+    def magInRange(cat):
+        mag = cat.get('base_PsfFlux_mag')
+        w, = np.where(np.isfinite(mag))
+        medianMag = np.median(mag[w])
+        return magRange[0] <= medianMag and medianMag < magRange[1]
+
+    groupViewInMagRange = groupView.where(magInRange)
+
+    # List of lists of id, importantValue
+    matchKeyOutput = [obj.get(key)
+                      for key in importantKeys
+                      for obj in groupViewInMagRange.groups]
+
+    jump = len(groupViewInMagRange)
+
+    ra = matchKeyOutput[1*jump:2*jump]
+    dec = matchKeyOutput[2*jump:3*jump]
+    visit = matchKeyOutput[4*jump:5*jump]
+
+    # Calculate the mean position of each object from its constituent visits
+    # `aggregate` calulates a quantity for each object in the groupView.
+    meanRa = groupViewInMagRange.aggregate(averageRaFromCat)
+    meanDec = groupViewInMagRange.aggregate(averageDecFromCat)
+
+    annulusRadians = arcminToRadians(annulus)
+
+    rmsDistances = list()
+    for obj1, (ra1, dec1, visit1) in enumerate(zip(meanRa, meanDec, visit)):
+        dist = sphDist(ra1, dec1, meanRa[obj1+1:], meanDec[obj1+1:])
+        objectsInAnnulus, = np.where((annulusRadians[0] <= dist) &
+                                     (dist < annulusRadians[1]))
+        for obj2 in objectsInAnnulus:
+            distances = matchVisitComputeDistance(
+                visit[obj1], ra[obj1], dec[obj1],
+                visit[obj2], ra[obj2], dec[obj2])
+            if not distances:
+                if verbose:
+                    print("No matching visits found for objs: %d and %d" %
+                          (obj1, obj2))
+                continue
+
+            finiteEntries, = np.where(np.isfinite(distances))
+            if len(finiteEntries) > 0:
+                rmsDist = np.std(np.array(distances)[finiteEntries])
+                rmsDistances.append(rmsDist)
+
+    return rmsDistances, annulus, magRange

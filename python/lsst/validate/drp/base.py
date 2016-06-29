@@ -270,7 +270,7 @@ class Metric(JsonSerializationMixin):
                     else:
                         raise RuntimeError(
                             'Cannot process dependency %r' % depItem)
-                    deps[d.name] = d
+                    deps[name] = d
             spec = Specification(name=specDoc.pop('level'),
                                  value=specDoc.pop('value'),
                                  units=specDoc.pop('units'),

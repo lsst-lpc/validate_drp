@@ -23,7 +23,7 @@ from __future__ import print_function, absolute_import
 import numpy as np
 
 from ..base import MeasurementBase, Metric
-from .utils import getRandomDiffRmsInMas
+from ..util import getRandomDiffRmsInMas
 
 
 class PF1Measurement(MeasurementBase):
@@ -89,5 +89,6 @@ class PF1Measurement(MeasurementBase):
         magKey = matchedDataset.magKey
         magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
 
-        pa2Val = self.metric.getSpec('PA2', bandpass=self.bandpass).value
+        pa2Val = self.metric.getSpec(specName, bandpass=self.bandpass).\
+            PA2.getSpec(specName, bandpass=self.bandpass).value
         self.value = 100 * np.mean(np.asarray(magDiffs) > pa2Val)

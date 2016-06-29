@@ -46,7 +46,8 @@ from .util import getCcdKeyName, repoNameToPrefix, loadParameters
 from .io import JobSerializer, persist_job
 from .matchreduce import (MatchedMultiVisitDataset, AnalyticPhotometryModel,
                           AnalyticAstrometryModel, positionRms)
-from .calcsrd import PA1Measurement, PA2Measurement, PF1Measurement
+from .calcsrd import (PA1Measurement, PA2Measurement, PF1Measurement,
+                      AMxMeasurement)
 from .base import Metric
 
 
@@ -557,6 +558,21 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
                              specName=specName, verbose=verbose)
         measurements.append(PF1)
         print('PF1', specName, PF1.checkSpec(specName))
+
+    AM1 = AMxMeasurement(1, matchedDataset,
+                         bandpass=filterName, verbose=verbose,
+                         linkedBlobs=[photomModel, astromModel])
+    measurements.append(AM1)
+
+    AM2 = AMxMeasurement(2, matchedDataset,
+                         bandpass=filterName, verbose=verbose,
+                         linkedBlobs=[photomModel, astromModel])
+    measurements.append(AM2)
+
+    AM3 = AMxMeasurement(3, matchedDataset,
+                         bandpass=filterName, verbose=verbose,
+                         linkedBlobs=[photomModel, astromModel])
+    measurements.append(AM3)
 
     job_serializer = JobSerializer(
         measurements=measurements,

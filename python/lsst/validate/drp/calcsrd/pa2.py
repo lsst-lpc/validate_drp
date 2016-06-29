@@ -23,7 +23,7 @@ from __future__ import print_function, absolute_import
 import numpy as np
 
 from ..base import MeasurementBase, Metric
-from .utils import getRandomDiffRmsInMas
+from ..util import getRandomDiffRmsInMas
 
 
 class PA2Measurement(MeasurementBase):
@@ -91,6 +91,7 @@ class PA2Measurement(MeasurementBase):
         magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
 
         # FIXME where is the median RMS in here?
-        pf1Val = self.metric.getSpec('PF1', bandpass=self.bandpass).value
+        pf1Val = self.metric.getSpec(specName, bandpass=self.bandpass).\
+            PF1.getSpec(specName, bandpass=self.bandpass).value
         pf1Percentile = 100. - pf1Val
         self.value = np.percentile(np.abs(magDiffs), pf1Percentile)

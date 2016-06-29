@@ -20,6 +20,9 @@
 
 from __future__ import print_function, absolute_import
 
+import os
+
+import yaml
 import numpy as np
 
 import lsst.afw.geom as afwGeom
@@ -30,6 +33,7 @@ from lsst.afw.table import MultiMatch, SimpleRecord, GroupView
 from lsst.afw.fits.fitsLib import FitsError
 import lsst.daf.persistence as dafPersist
 import lsst.pipe.base as pipeBase
+from lsst.utils import getPackageDir
 
 # from .base import ValidateErrorNoStars
 # from .calcSrd import calcAM1, calcAM2, calcAM3, calcPA1, calcPA2
@@ -42,7 +46,8 @@ from .util import getCcdKeyName, repoNameToPrefix, loadParameters
 from .io import JobSerializer, persist_job
 from .matchreduce import (MatchedMultiVisitDataset, AnalyticPhotometryModel,
                           AnalyticAstrometryModel, positionRms)
-from .calcsrd import PA1Measurement
+from .calcsrd import PA1Measurement, PA2Measurement, PF1Measurement
+from .base import Metric
 
 
 def loadAndMatchData(repo, dataIds,
@@ -517,6 +522,11 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         Output additional information on the analysis steps.
 
     """
+    # Cache the YAML definitions of metrics (optional)
+    yamlPath = os.path.join(getPackageDir('validate_drp'),
+                            'metrics.yaml')
+    with open(yamlPath) as f:
+        yamlDoc = yaml.load(f)
 
     if outputPrefix is None:
         outputPrefix = repoNameToPrefix(repo)
@@ -533,6 +543,20 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
     measurements.append(PA1)
     print('filterName', filterName, PA1.bandpass)
     print('design', PA1.checkSpec('design'), filterName)
+
+    pa2Metric = Metric.fromYaml('PA2', yamlDoc=yamlDoc)
+    for specName in pa2Metric.getSpecNames(bandpass=filterName):
+        PA2 = PA2Measurement(matchedDataset, bandpass=filterName,
+                             specName=specName, verbose=verbose)
+        measurements.append(PA2)
+        print('PA2', specName, PA2.checkSpec(specName))
+
+    pf1Metric = Metric.fromYaml('PF1', yamlDoc=yamlDoc)
+    for specName in pf1Metric.getSpecNames(bandpass=filterName):
+        PF1 = PF1Measurement(matchedDataset, bandpass=filterName,
+                             specName=specName, verbose=verbose)
+        measurements.append(PF1)
+        print('PF1', specName, PF1.checkSpec(specName))
 
     job_serializer = JobSerializer(
         measurements=measurements,

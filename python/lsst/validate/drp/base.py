@@ -147,7 +147,6 @@ class Datum(JsonSerializationMixin):
     def units(self, value):
         # verify that Astropy can parse the unit string
         if value is not None and value != 'millimag':
-            print(value)
             astropy.units.Unit(value, parse_strict='raise')
         self._doc['units'] = value
 
@@ -158,7 +157,6 @@ class Datum(JsonSerializationMixin):
 
     @label.setter
     def label(self, value):
-        print("datum label", value)
         assert isinstance(value, basestring) or value is None
         self._doc['label'] = value
 
@@ -383,7 +381,8 @@ class Metric(JsonSerializationMixin):
         specNames = []
 
         for spec in self.specs:
-            if bandpass is not None and bandpass not in spec.bandpasses:
+            if (bandpass is not None) and (spec.bandpasses is not None) \
+                    and (bandpass not in spec.bandpasses):
                 continue
             specNames.append(spec.name)
 

@@ -283,7 +283,7 @@ AF3:
       dependencies:
         - AD3
         - D: {value: 200.0, units: arcmin}
-    - level: minimum
+    - level: stretch
       value: 5.0
       units: ''
       filters: [r, i]
@@ -303,21 +303,21 @@ AD1:
   specs:
     - level: design
       value: 20.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF1
         - D: {value: 5.0, units: arcmin}
     - level: minimum
       value: 40.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF1
         - D: {value: 5.0, units: arcmin}
     - level: stretch
       value: 10.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF1
@@ -335,21 +335,21 @@ AD2:
   specs:
     - level: design
       value: 20.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF2
         - D: {value: 20.0, units: arcmin}
     - level: minimum
       value: 40.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF2
         - D: {value: 20.0, units: arcmin}
     - level: stretch
       value: 10.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF2
@@ -367,21 +367,21 @@ AD3:
   specs:
     - level: design
       value: 30.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF3
         - D: {value: 200.0, units: arcmin}
     - level: minimum
       value: 50.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF3
         - D: {value: 200.0, units: arcmin}
     - level: stretch
       value: 20.0
-      units: milliarcsec
+      units: milliarcsecond
       filters: [r, i]
       dependencies:
         - AF3

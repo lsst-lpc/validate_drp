@@ -361,7 +361,8 @@ class Metric(JsonSerializationMixin):
             return candidates[0]
 
         raise RuntimeError(
-            'No spec found for name={0} bandpass={1}'.format(name, bandpass))
+            'No {2} spec found for name={0} bandpass={1}'.format(
+                name, bandpass, self.name))
 
     def getSpecNames(self, bandpass=None):
         """List names of all specification levels defined for this metric;

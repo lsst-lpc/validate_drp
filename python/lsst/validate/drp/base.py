@@ -427,6 +427,14 @@ class Specification(JsonSerializationMixin):
         return self.dependencies[key]
 
     @property
+    def datum(self):
+        """Representation of this Specification as a
+        :class:`lsst.validate.drp.base.Datum`.
+        """
+        return Datum(self.value, units=self.units, label=self.name,
+                     description=None)
+
+    @property
     def json(self):
         return JsonSerializationMixin.jsonify_dict({
             'name': self.name,

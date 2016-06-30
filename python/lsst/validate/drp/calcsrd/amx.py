@@ -161,7 +161,10 @@ class AMxMeasurement(MeasurementBase):
             # attempted instead of just crashing.
             print('No stars found that are %.1f--%.1f arcmin apart.' %
                   (annulus[0], annulus[1]))
+            self.rmsDistMas = None
             self.value = None
         else:
-            rmsDistMas = radiansToMilliarcsec(rmsDistances)
-            self.value = np.median(rmsDistMas)
+            self.rmsDistMas = np.asarray(radiansToMilliarcsec(rmsDistances))
+            self.value = np.median(self.rmsDistMas)
+
+        # FIXME make rmsDistMas part of Blob object.

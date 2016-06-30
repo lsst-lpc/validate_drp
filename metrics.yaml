@@ -219,7 +219,7 @@ AF1:
       dependencies:
         - AD1
         - D: {value: 5.0, units: arcmin}
-    - level: minimum
+    - level: stretch
       value: 5.0
       units: ''
       filters: [r, i]
@@ -251,7 +251,7 @@ AF2:
       dependencies:
         - AD2
         - D: {value: 20.0, units: arcmin}
-    - level: minimum
+    - level: stretch
       value: 5.0
       units: ''
       filters: [r, i]
@@ -315,7 +315,7 @@ AD1:
       dependencies:
         - AF1
         - D: {value: 5.0, units: arcmin}
-    - level: minimum
+    - level: stretch
       value: 10.0
       units: milliarcsec
       filters: [r, i]
@@ -347,7 +347,7 @@ AD2:
       dependencies:
         - AF2
         - D: {value: 20.0, units: arcmin}
-    - level: minimum
+    - level: stretch
       value: 10.0
       units: milliarcsec
       filters: [r, i]
@@ -379,7 +379,7 @@ AD3:
       dependencies:
         - AF3
         - D: {value: 200.0, units: arcmin}
-    - level: minimum
+    - level: stretch
       value: 20.0
       units: milliarcsec
       filters: [r, i]

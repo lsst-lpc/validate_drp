@@ -510,7 +510,7 @@ class MeasurementBase(JsonSerializationMixin):
             Extended description; used if `paramValue` is not already a
             `Datum`.
         """
-        if isinstance(Datum, paramValue):
+        if isinstance(paramValue, Datum):
             self.parameters[paramKey] = paramValue
         else:
             self.parameters[paramKey] = Datum(
@@ -557,7 +557,7 @@ class MeasurementBase(JsonSerializationMixin):
         """a `dict` that can be serialized as semantic SQuaSH json."""
         object_doc = {'metric': self.metric,
                       'value': self.value,
-                      'parameters': self._params,
+                      'parameters': self.parameters,
                       'blobs': self._linkedBlobs,
                       'schema': self.schema,
                       'spec_name': self.specName,

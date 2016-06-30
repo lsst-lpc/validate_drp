@@ -530,6 +530,14 @@ class MeasurementBase(JsonSerializationMixin):
         """Lable (`str`) suitable for plot axes; without units."""
         pass
 
+    @property
+    def datum(self):
+        """Representation of this measurement as a
+        :class:`lsst.validate.drp.base.Datum`.
+        """
+        return Datum(self.value, units=self.units, label=self.label,
+                     description=self.metric.description)
+
     @abc.abstractproperty
     def schema(self):
         """A `str` identifying the schema of this measurement and parameters.

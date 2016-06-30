@@ -47,7 +47,7 @@ from .io import JobSerializer, persist_job
 from .matchreduce import (MatchedMultiVisitDataset, AnalyticPhotometryModel,
                           AnalyticAstrometryModel, positionRms)
 from .calcsrd import (PA1Measurement, PA2Measurement, PF1Measurement,
-                      AMxMeasurement)
+                      AMxMeasurement, AFxMeasurement, ADxMeasurement)
 from .base import Metric
 
 
@@ -563,16 +563,67 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
                          bandpass=filterName, verbose=verbose,
                          linkedBlobs=[photomModel, astromModel])
     measurements.append(AM1)
+    print('AM1', AM1.checkSpec('design'))
+
+    af1Metric = Metric.fromYaml('AF1', yamlDoc=yamlDoc)
+    for specName in af1Metric.getSpecNames(bandpass=filterName):
+        AF1 = AFxMeasurement(1, matchedDataset, AM1,
+                             bandpass=filterName, specName=specName,
+                             verbose=verbose,
+                             linkedBlobs=[photomModel, astromModel])
+        measurements.append(AF1)
+        print('AF1', specName, AF1.checkSpec(specName))
+
+        AD1 = ADxMeasurement(1, matchedDataset, AM1,
+                             bandpass=filterName, specName=specName,
+                             verbose=verbose,
+                             linkedBlobs=[photomModel, astromModel])
+        measurements.append(AD1)
+        print('AD1', specName, AD1.checkSpec(specName))
 
     AM2 = AMxMeasurement(2, matchedDataset,
                          bandpass=filterName, verbose=verbose,
                          linkedBlobs=[photomModel, astromModel])
     measurements.append(AM2)
+    print('AM2', AM2.checkSpec('design'))
+
+    af2Metric = Metric.fromYaml('AF2', yamlDoc=yamlDoc)
+    for specName in af2Metric.getSpecNames(bandpass=filterName):
+        AF2 = AFxMeasurement(2, matchedDataset, AM2,
+                             bandpass=filterName, specName=specName,
+                             verbose=verbose,
+                             linkedBlobs=[photomModel, astromModel])
+        measurements.append(AF2)
+        print('AF2', specName, AF2.checkSpec(specName))
+
+        AD2 = ADxMeasurement(2, matchedDataset, AM2,
+                             bandpass=filterName, specName=specName,
+                             verbose=verbose,
+                             linkedBlobs=[photomModel, astromModel])
+        measurements.append(AD2)
+        print('AD2', specName, AD2.checkSpec(specName))
 
     AM3 = AMxMeasurement(3, matchedDataset,
                          bandpass=filterName, verbose=verbose,
                          linkedBlobs=[photomModel, astromModel])
     measurements.append(AM3)
+    print('AM3', AM3.checkSpec('design'))
+
+    af3Metric = Metric.fromYaml('AF3', yamlDoc=yamlDoc)
+    for specName in af3Metric.getSpecNames(bandpass=filterName):
+        AF3 = AFxMeasurement(3, matchedDataset, AM3,
+                             bandpass=filterName, specName=specName,
+                             verbose=verbose,
+                             linkedBlobs=[photomModel, astromModel])
+        measurements.append(AF3)
+        print('AF3', specName, AF3.checkSpec(specName))
+
+        AD3 = ADxMeasurement(3, matchedDataset, AM3,
+                             bandpass=filterName, specName=specName,
+                             verbose=verbose,
+                             linkedBlobs=[photomModel, astromModel])
+        measurements.append(AD3)
+        print('AD3', specName, AD3.checkSpec(specName))
 
     job_serializer = JobSerializer(
         measurements=measurements,

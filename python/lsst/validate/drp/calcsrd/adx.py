@@ -109,8 +109,8 @@ class ADxMeasurement(MeasurementBase):
         MeasurementBase.__init__(self)
 
         if x not in [1, 2, 3]:
-            raise ValueError('AFx x should be 1, 2, or 3.')
-        self.label = 'AF{0:d}'.format(x)
+            raise ValueError('ADx x should be 1, 2, or 3.')
+        self.label = 'AD{0:d}'.format(x)
         self.bandpass = bandpass
 
         self.metric = Metric.fromYaml(self.label,
@@ -140,7 +140,7 @@ class ADxMeasurement(MeasurementBase):
             # Need to get the ADX value where the range [AMX, ADX] contains
             # AFX of the values
             # i.e., 50. + AFX of the values will be less than ADX
-            self.value = np.stats.percentile(amx.rmsDistMas, 50. + afxSpec)
+            self.value = np.percentile(amx.rmsDistMas, 50. + afxSpec)
         else:
             # FIXME previously would raise ValidateErrorNoStars
             self.value = None

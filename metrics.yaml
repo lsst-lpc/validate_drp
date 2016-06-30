@@ -363,7 +363,7 @@ AD3:
   description: >
     No more than AFx of the astrometric distances will deviate by more than
     this from the median (see AMx, AFx) (milliarcsec).
-  operation: "<="
+  operator: "<="
   specs:
     - level: design
       value: 30.0

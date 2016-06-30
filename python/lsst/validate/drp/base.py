@@ -454,12 +454,17 @@ class MeasurementBase(JsonSerializationMixin):
         made from. Defaults to `None` if a measurement is not
         bandpass-dependent. `bandpass` should be specificed if needed to
         resolve a bandpass-specific specification.
+    parameters : dict
+        A `dict` containing all input parameters used by this measurement.
+        Parameters are :class:`lsst.validate.drp.base.Datum` instances.
+        Parameters can be *accessed* directly from this attribute, but should
+        be *set* with the :meth:`MeasurementBase.registerParameter` method.
     """
     __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         self._linkedBlobs = []
-        self._params = {}
+        self.parameters = {}
         self.specName = None
         self.bandpass = None
 
@@ -470,11 +475,38 @@ class MeasurementBase(JsonSerializationMixin):
         """
         self._linkedBlobs.append(blob)
 
-    def registerParameter(self, paramKey, paramValue):
+    def registerParameter(self, paramKey, paramValue, units=None, label=None,
+                          description=None):
         """Register a measurement input parameter so that it can be persisted
         with the measurement.
+
+        Parameters are stored as :class:`Datum` objects, and can be
+        accessed through the `parameters` attribute `dict`.
+
+        Parameters
+        ----------
+        paramKey : str
+            Name of the parameter; used as the key in the `parameters`
+            attribute of this object.
+        paramValue : obj or :class:`lsst.validate.drp.base.Datum`
+            Value of the parameter, either as a regular object, or already
+            represented as a :class:`~lsst.validate.drp.base.Datum`.
+        units : str, optional
+            The astropy-compatible unit string, used if `paramValue` is
+            not already a `Datum`. See
+            http://docs.astropy.org/en/stable/units/.
+        label : str, optional
+            Label suitable for plot axes (without units); used if
+            `paramValue` is not already a `Datum`.
+        description : `str`, optional
+            Extended description; used if `paramValue` is not already a
+            `Datum`.
         """
-        self._params[paramKey] = paramValue
+        if isinstance(Datum, paramValue):
+            self.parameters[paramKey] = paramValue
+        else:
+            self.parameters[paramKey] = Datum(
+                paramValue, units=units, label=label, description=description)
 
     @abc.abstractproperty
     def metric(self):

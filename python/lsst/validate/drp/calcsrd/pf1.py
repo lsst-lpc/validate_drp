@@ -33,6 +33,8 @@ class PF1Measurement(MeasurementBase):
     Parameters
     ----------
     matchedDataset : lsst.validate.drp.matchreduce.MatchedMultiVisitDataset
+    pa1 : PA1Measurement
+        A PA1 measurement instance.
     bandpass : str
         Bandpass (filter name) used in this measurement (e.g., `'r'`).
     specName : str
@@ -63,7 +65,7 @@ class PF1Measurement(MeasurementBase):
     label = 'PF1'
     schema = 'pf1-1.0.0'
 
-    def __init__(self, matchedDataset, bandpass, specName, verbose=False,
+    def __init__(self, matchedDataset, pa1, bandpass, specName, verbose=False,
                  linkedBlobs=None, job=None,
                  metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
@@ -72,9 +74,6 @@ class PF1Measurement(MeasurementBase):
         self.metric = Metric.fromYaml(self.label,
                                       yamlDoc=metricYamlDoc,
                                       yamlPath=metricYamlPath)
-
-        # TODO register input parameters for serialization
-        # note that matchedDataset is treated as a blob, separately
 
         self.matchedDataset = matchedDataset
 
@@ -85,10 +84,8 @@ class PF1Measurement(MeasurementBase):
                 self.linkBlob(blob)
         self.linkBlob(self.matchedDataset)
 
-        matches = matchedDataset.safeMatches
-        magKey = matchedDataset.magKey
-        magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
-        # FIXME Get magdiffs from a blob supplied by PA1
+        # Use first random sample from original PA1 measurement
+        magDiffs = pa1.magDiff[0, :]
 
         pa2Val = self.metric.getSpec(specName, bandpass=self.bandpass).\
             PA2.getSpec(specName, bandpass=self.bandpass).value

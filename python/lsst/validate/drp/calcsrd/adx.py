@@ -119,6 +119,12 @@ class ADxMeasurement(MeasurementBase):
 
         # register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately
+        self.registerParameter('D', amx.parameters['D'])
+        self.registerParameter('annulus', amx.parameters['annulus'])
+        self.registerParameter('mag_range', amx.parameters['mag_range'])
+        self.registerParameter('AMx', amx.datum)
+
+        # FIXME link to the blob with rmsDistMas created by AMx.
 
         self.matchedDataset = matchedDataset
 
@@ -130,17 +136,18 @@ class ADxMeasurement(MeasurementBase):
         self.linkBlob(self.matchedDataset)
 
         afx = getattr(self.metric.getSpec(specName, bandpass=self.bandpass),
-                      'AF{0:d}'.format(x))
-        afxSpec = afx.getSpec(specName, bandpass=self.bandpass).value
-
-        # FIXME mark AMx as a parameter or related?
-        # FIXME export adx_spec as a parameter?
+                      'AF{0:d}'.format(x))\
+            .getSpec(specName, bandpass=self.bandpass)
+        afxSpec = afx.value
+        self.registerParameter('AFx', afx.datum)
 
         if amx.value:
-            # Need to get the ADX value where the range [AMX, ADX] contains
-            # AFX of the values
-            # i.e., 50. + AFX of the values will be less than ADX
-            self.value = np.percentile(amx.rmsDistMas, 50. + afxSpec)
+            # No more than AFx of values will deviate by more than the
+            # AMx (50th) + AFx percentiles
+            # To compute ADx, use measured AMx and spec for AFx.
+            percentileAtAfx = np.percentile(amx.rmsDistMas, 100. - afxSpec)
+            percentileAtAmx = np.percentile(amx.rmsDistMas, amx.value)
+            self.value = percentileAtAfx - percentileAtAmx
         else:
             # FIXME previously would raise ValidateErrorNoStars
             self.value = None

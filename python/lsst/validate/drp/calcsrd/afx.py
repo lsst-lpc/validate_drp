@@ -45,6 +45,9 @@ class AFxMeasurement(MeasurementBase):
         minimum, stretch).
     verbose : bool, optional
         Output additional information on the analysis steps.
+    job : :class:`lsst.validate.drp.base.Job`, optional
+        If provided, the measurement will register itself with the Job
+        object.
     linkedBlobs : list, optional
         A `list` of additional blobs (subclasses of BlobSerializerBase) that
         can provide additional context to the measurement, though aren't
@@ -104,7 +107,7 @@ class AFxMeasurement(MeasurementBase):
     schema = 'afx-1.0.0'
 
     def __init__(self, x, matchedDataset, amx, bandpass, specName,
-                 verbose=False,
+                 verbose=False, job=None,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
 
@@ -144,3 +147,6 @@ class AFxMeasurement(MeasurementBase):
         else:
             # FIXME previously would raise ValidateErrorNoStars
             self.value = None
+
+        if job:
+            job.registerMeasurement(self)

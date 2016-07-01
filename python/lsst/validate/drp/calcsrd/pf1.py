@@ -38,8 +38,6 @@ class PF1Measurement(MeasurementBase):
     specName : str
         Name of a specification level to measure against (e.g., design,
         minimum, stretch).
-    numRandomShuffles : int
-        Number of times to draw random pairs from the different observations.
     verbose : bool, optional
         Output additional information on the analysis steps.
     linkedBlobs : list, optional
@@ -62,8 +60,7 @@ class PF1Measurement(MeasurementBase):
     label = 'PF1'
     schema = 'pf1-1.0.0'
 
-    def __init__(self, matchedDataset, bandpass, specName,
-                 numRandomShuffles=50, verbose=False,
+    def __init__(self, matchedDataset, bandpass, specName, verbose=False,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
         self.bandpass = bandpass
@@ -72,9 +69,8 @@ class PF1Measurement(MeasurementBase):
                                       yamlDoc=metricYamlDoc,
                                       yamlPath=metricYamlPath)
 
-        # register input parameters for serialization
+        # TODO register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately
-        self.registerParameter('num_random_shuffles', numRandomShuffles)
 
         self.matchedDataset = matchedDataset
 
@@ -88,7 +84,9 @@ class PF1Measurement(MeasurementBase):
         matches = matchedDataset.safeMatches
         magKey = matchedDataset.magKey
         magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
+        # FIXME Get magdiffs from a blob supplied by PA1
 
         pa2Val = self.metric.getSpec(specName, bandpass=self.bandpass).\
             PA2.getSpec(specName, bandpass=self.bandpass).value
+        # FIXME should this be np.abs(magDiffs) (see pa2)?
         self.value = 100 * np.mean(np.asarray(magDiffs) > pa2Val)

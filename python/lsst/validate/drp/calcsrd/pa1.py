@@ -95,7 +95,9 @@ class PA1Measurement(MeasurementBase):
 
         # register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately
-        self.registerParameter('num_random_shuffles', numRandomShuffles)
+        self.registerParameter('num_random_shuffles', numRandomShuffles,
+                               units='', label='shuffles',
+                               description='Number of random shuffles')
 
         self.matchedDataset = matchedDataset
 
@@ -111,10 +113,14 @@ class PA1Measurement(MeasurementBase):
         pa1Samples = [self._calc_PA1_sample(matches, magKey)
                       for n in range(numRandomShuffles)]
 
+        # TODO turn this into a blob too
         self.rmsPA1 = np.array([pa1.rms for pa1 in pa1Samples])
         self.iqrPA1 = np.array([pa1.iqr for pa1 in pa1Samples])
 
         self.value = np.mean(self.iqrPA1)
+
+        # TODO turn this into a blob too
+        self.magDiffs = None  # archive all num_random_shuffles?
 
     def _calc_PA1_sample(self, groupView, magKey):
         magDiffs = groupView.aggregate(getRandomDiffRmsInMas, field=magKey)

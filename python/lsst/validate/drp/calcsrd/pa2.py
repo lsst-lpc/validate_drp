@@ -27,8 +27,8 @@ from ..util import getRandomDiffRmsInMas
 
 
 class PA2Measurement(MeasurementBase):
-    """Measurement of PA2: millimag from median RMS (see PA1) containing
-    PF1 of the samples.
+    """Measurement of PA2: millimag from median RMS (see PA1) of which
+    PF1 of the samples can be found.
 
     Parameters
     ----------
@@ -38,8 +38,6 @@ class PA2Measurement(MeasurementBase):
     specName : str
         Name of a specification level to measure against (e.g., design,
         minimum, stretch).
-    numRandomShuffles : int
-        Number of times to draw random pairs from the different observations.
     verbose : bool, optional
         Output additional information on the analysis steps.
     linkedBlobs : list, optional
@@ -63,8 +61,7 @@ class PA2Measurement(MeasurementBase):
     schema = 'pa2-1.0.0'
 
     # FIXME somehow this isn't depdendent on a median RMS (e.g., PA1 measure)
-    def __init__(self, matchedDataset, bandpass, specName,
-                 numRandomShuffles=50, verbose=False,
+    def __init__(self, matchedDataset, bandpass, specName, verbose=False,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
         self.bandpass = bandpass
@@ -73,9 +70,8 @@ class PA2Measurement(MeasurementBase):
                                       yamlDoc=metricYamlDoc,
                                       yamlPath=metricYamlPath)
 
-        # register input parameters for serialization
+        # TODO register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately
-        self.registerParameter('num_random_shuffles', numRandomShuffles)
 
         self.matchedDataset = matchedDataset
 
@@ -89,8 +85,8 @@ class PA2Measurement(MeasurementBase):
         matches = matchedDataset.safeMatches
         magKey = matchedDataset.magKey
         magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
+        # FIXME Get magdiffs from a blob supplied by PA1
 
-        # FIXME where is the median RMS in here?
         pf1Val = self.metric.getSpec(specName, bandpass=self.bandpass).\
             PF1.getSpec(specName, bandpass=self.bandpass).value
         pf1Percentile = 100. - pf1Val

@@ -22,7 +22,7 @@ from __future__ import print_function, absolute_import
 
 import numpy as np
 
-from ..base import MeasurementBase, Metric, ValidateErrorNoStars
+from ..base import MeasurementBase, Metric, Datum, BlobBase
 from ..util import radiansToMilliarcsec, calcRmsDistances
 
 
@@ -56,6 +56,13 @@ class AMxMeasurement(MeasurementBase):
         A `list` of additional blobs (subclasses of BlobSerializerBase) that
         can provide additional context to the measurement, though aren't
         direct dependencies of the computation (e.g., `matchedDataset).
+
+    Attributes
+    ----------
+    rmsDistMas : ndarray
+        RMS of distance repeatability between stellar pairs.
+    blob : AMxBlob
+        Blob with by-products from this measurement.
 
     Raises
     ------
@@ -174,7 +181,23 @@ class AMxMeasurement(MeasurementBase):
             self.rmsDistMas = np.asarray(radiansToMilliarcsec(rmsDistances))
             self.value = np.median(self.rmsDistMas)
 
-        # FIXME make rmsDistMas part of Blob object.
+            # Persist rmsDistMas as a new blob
+            rmsDistMasDatum = Datum(
+                value=self.rmsDistMas,
+                units='milliarcsecond',
+                label='RMS')
+            self.blob = AMxBlob(rmsDistMasDatum)
+            self.linkBlob(self.blob)
 
         if job:
             job.registerMeasurement(self)
+
+
+class AMxBlob(BlobBase):
+    """Blob container associated with AMx measurements."""
+
+    schema = 'amx-blob-v1.0.0'
+
+    def __init__(self, rmsDistMasDatum):
+        BlobBase.__init__(self)
+        self._doc['rms_dist_mas'] = rmsDistMasDatum

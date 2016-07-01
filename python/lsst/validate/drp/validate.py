@@ -48,7 +48,7 @@ from .matchreduce import (MatchedMultiVisitDataset, AnalyticPhotometryModel,
                           AnalyticAstrometryModel, positionRms)
 from .calcsrd import (PA1Measurement, PA2Measurement, PF1Measurement,
                       AMxMeasurement, AFxMeasurement, ADxMeasurement)
-from .base import Metric
+from .base import Metric, Job
 
 
 def loadAndMatchData(repo, dataIds,
@@ -537,32 +537,29 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
     photomModel = AnalyticPhotometryModel(matchedDataset)
     astromModel = AnalyticAstrometryModel(matchedDataset)
 
-    measurements = []
+    job = Job()
 
     PA1 = PA1Measurement(matchedDataset, bandpass=filterName, verbose=verbose,
-                         linkedBlobs=[photomModel, astromModel])
-    measurements.append(PA1)
-    print('filterName', filterName, PA1.bandpass)
+                         job=job, linkedBlobs=[photomModel, astromModel])
     print('design', PA1.checkSpec('design'), filterName)
 
     pa2Metric = Metric.fromYaml('PA2', yamlDoc=yamlDoc)
     for specName in pa2Metric.getSpecNames(bandpass=filterName):
         PA2 = PA2Measurement(matchedDataset, bandpass=filterName,
-                             specName=specName, verbose=verbose)
-        measurements.append(PA2)
+                             specName=specName, verbose=verbose,
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('PA2', specName, PA2.checkSpec(specName))
 
     pf1Metric = Metric.fromYaml('PF1', yamlDoc=yamlDoc)
     for specName in pf1Metric.getSpecNames(bandpass=filterName):
         PF1 = PF1Measurement(matchedDataset, bandpass=filterName,
-                             specName=specName, verbose=verbose)
-        measurements.append(PF1)
+                             specName=specName, verbose=verbose,
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('PF1', specName, PF1.checkSpec(specName))
 
     AM1 = AMxMeasurement(1, matchedDataset,
                          bandpass=filterName, verbose=verbose,
-                         linkedBlobs=[photomModel, astromModel])
-    measurements.append(AM1)
+                         job=job, linkedBlobs=[photomModel, astromModel])
     print('AM1', AM1.checkSpec('design'))
 
     af1Metric = Metric.fromYaml('AF1', yamlDoc=yamlDoc)
@@ -570,21 +567,18 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         AF1 = AFxMeasurement(1, matchedDataset, AM1,
                              bandpass=filterName, specName=specName,
                              verbose=verbose,
-                             linkedBlobs=[photomModel, astromModel])
-        measurements.append(AF1)
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('AF1', specName, AF1.checkSpec(specName))
 
         AD1 = ADxMeasurement(1, matchedDataset, AM1,
                              bandpass=filterName, specName=specName,
                              verbose=verbose,
-                             linkedBlobs=[photomModel, astromModel])
-        measurements.append(AD1)
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('AD1', specName, AD1.checkSpec(specName))
 
     AM2 = AMxMeasurement(2, matchedDataset,
                          bandpass=filterName, verbose=verbose,
-                         linkedBlobs=[photomModel, astromModel])
-    measurements.append(AM2)
+                         job=job, linkedBlobs=[photomModel, astromModel])
     print('AM2', AM2.checkSpec('design'))
 
     af2Metric = Metric.fromYaml('AF2', yamlDoc=yamlDoc)
@@ -592,21 +586,18 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         AF2 = AFxMeasurement(2, matchedDataset, AM2,
                              bandpass=filterName, specName=specName,
                              verbose=verbose,
-                             linkedBlobs=[photomModel, astromModel])
-        measurements.append(AF2)
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('AF2', specName, AF2.checkSpec(specName))
 
         AD2 = ADxMeasurement(2, matchedDataset, AM2,
                              bandpass=filterName, specName=specName,
                              verbose=verbose,
-                             linkedBlobs=[photomModel, astromModel])
-        measurements.append(AD2)
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('AD2', specName, AD2.checkSpec(specName))
 
     AM3 = AMxMeasurement(3, matchedDataset,
                          bandpass=filterName, verbose=verbose,
-                         linkedBlobs=[photomModel, astromModel])
-    measurements.append(AM3)
+                         job=job, linkedBlobs=[photomModel, astromModel])
     print('AM3', AM3.checkSpec('design'))
 
     af3Metric = Metric.fromYaml('AF3', yamlDoc=yamlDoc)
@@ -614,21 +605,16 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         AF3 = AFxMeasurement(3, matchedDataset, AM3,
                              bandpass=filterName, specName=specName,
                              verbose=verbose,
-                             linkedBlobs=[photomModel, astromModel])
-        measurements.append(AF3)
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('AF3', specName, AF3.checkSpec(specName))
 
         AD3 = ADxMeasurement(3, matchedDataset, AM3,
                              bandpass=filterName, specName=specName,
                              verbose=verbose,
-                             linkedBlobs=[photomModel, astromModel])
-        measurements.append(AD3)
+                             job=job, linkedBlobs=[photomModel, astromModel])
         print('AD3', specName, AD3.checkSpec(specName))
 
-    job_serializer = JobSerializer(
-        measurements=measurements,
-        blobs=[matchedDataset, photomModel, astromModel])
-    persist_job(job_serializer, outputPrefix.rstrip('_') + '.json')
+    persist_job(job, outputPrefix.rstrip('_') + '.json')
 
     # if makePlot:
     #     plotAstrometry(dist, magavg, struct.snr,

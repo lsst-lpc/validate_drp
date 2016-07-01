@@ -545,14 +545,14 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
 
     pa2Metric = Metric.fromYaml('PA2', yamlDoc=yamlDoc)
     for specName in pa2Metric.getSpecNames(bandpass=filterName):
-        PA2 = PA2Measurement(matchedDataset, bandpass=filterName,
+        PA2 = PA2Measurement(matchedDataset, pa1=PA1, bandpass=filterName,
                              specName=specName, verbose=verbose,
                              job=job, linkedBlobs=[photomModel, astromModel])
         print('PA2', specName, PA2.checkSpec(specName))
 
     pf1Metric = Metric.fromYaml('PF1', yamlDoc=yamlDoc)
     for specName in pf1Metric.getSpecNames(bandpass=filterName):
-        PF1 = PF1Measurement(matchedDataset, bandpass=filterName,
+        PF1 = PF1Measurement(matchedDataset, pa1=PA1, bandpass=filterName,
                              specName=specName, verbose=verbose,
                              job=job, linkedBlobs=[photomModel, astromModel])
         print('PF1', specName, PF1.checkSpec(specName))

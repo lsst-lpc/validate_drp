@@ -49,6 +49,9 @@ class AMxMeasurement(MeasurementBase):
         E.g., `magRange=[17.5, 21.0]`
     verbose : bool, optional
         Output additional information on the analysis steps.
+    job : :class:`lsst.validate.drp.base.Job`, optional
+        If provided, the measurement will register itself with the Job
+        object.
     linkedBlobs : list, optional
         A `list` of additional blobs (subclasses of BlobSerializerBase) that
         can provide additional context to the measurement, though aren't
@@ -108,7 +111,7 @@ class AMxMeasurement(MeasurementBase):
     schema = 'amx-1.0.0'
 
     def __init__(self, x, matchedDataset, bandpass, width=2., magRange=None,
-                 verbose=False,
+                 verbose=False, job=None,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
 
@@ -172,3 +175,6 @@ class AMxMeasurement(MeasurementBase):
             self.value = np.median(self.rmsDistMas)
 
         # FIXME make rmsDistMas part of Blob object.
+
+        if job:
+            job.registerMeasurement(self)

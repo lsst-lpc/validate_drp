@@ -22,6 +22,7 @@ from __future__ import print_function, division
 
 import abc
 import os
+import uuid
 import operator
 import yaml
 import numpy as np
@@ -472,6 +473,7 @@ class MeasurementBase(JsonSerializationMixin):
 
     def __init__(self):
         self._linkedBlobs = []
+        self._id = uuid.uuid4().hex
         self.parameters = {}
         self.specName = None
         self.bandpass = None
@@ -482,6 +484,14 @@ class MeasurementBase(JsonSerializationMixin):
         persisted in a Job document, however.
         """
         self._linkedBlobs.append(blob)
+
+    @property
+    def blobs(self):
+        return self._linkedBlobs
+
+    @property
+    def identifier(self):
+        return self._id
 
     def registerParameter(self, paramKey, paramValue, units=None, label=None,
                           description=None):
@@ -555,10 +565,11 @@ class MeasurementBase(JsonSerializationMixin):
     @property
     def json(self):
         """a `dict` that can be serialized as semantic SQuaSH json."""
+        blobIds = list(set([b.identifier for b in self._linkedBlobs]))
         object_doc = {'metric': self.metric,
                       'value': self.value,
                       'parameters': self.parameters,
-                      'blobs': self._linkedBlobs,
+                      'blobs': blobIds,
                       'schema': self.schema,
                       'spec_name': self.specName,
                       'filter': self.bandpass}
@@ -582,6 +593,7 @@ class BlobBase(JsonSerializationMixin):
     """
 
     def __init__(self):
+        self._id = uuid.uuid4().hex
         self._doc = {}
 
     @abc.abstractproperty
@@ -590,6 +602,77 @@ class BlobBase(JsonSerializationMixin):
         pass
 
     @property
+    def identifier(self):
+        return self._id
+
+    @property
     def json(self):
         json_doc = JsonSerializationMixin.jsonify_dict(self._doc)
         return json_doc
+
+
+class Job(JsonSerializationMixin):
+    """A Job is a wrapper around all measurements and blob metadata associated
+    with a validate_drp run.
+
+    Use the Job.json attribute to access a json-serializable dict of all
+    measurements and blobs associated with the Job.
+
+    Parameters
+    ----------
+    measurements : `list`, optional
+        List of `MeasurementBase`-derived objects.
+    blobs : list
+        List of `BlobBase`-derived objects.
+    """
+    def __init__(self, measurements=None, blobs=None):
+        self._measurements = []
+        self._measurement_ids = set()
+        self._blobs = []
+        self._blob_ids = set()
+
+        if measurements:
+            for m in measurements:
+                self.registerMeasurement(m)
+
+        if blobs:
+            for b in measurements:
+                self.registerBlob(b)
+
+    def registerMeasurement(self, m):
+        """Add a measurement object to the Job.
+
+        Registering a measurement will also automatically register all
+        linked blobs.
+
+        Parameters
+        ----------
+        m : :class:`lsst.validate.drp.base.MeasurementBase`-type object
+            A measurement object.
+        """
+        assert isinstance(m, MeasurementBase)
+        if m.identifier not in self._measurement_ids:
+            self._measurements.append(m)
+            self._measurement_ids.add(m.identifier)
+            for b in m.blobs:
+                self.registerBlob(b)
+
+    def registerBlob(self, b):
+        """Add a blob object to the Job.
+
+        Parameters
+        ----------
+        b : :class:`lsst.validate.drp.base.BlobBase`-type object
+            A blob object.
+        """
+        assert isinstance(b, BlobBase)
+        if b.identifier not in self._blob_ids:
+            self._blobs.append(b)
+            self._blob_ids.add(b.identifier)
+
+    @property
+    def json(self):
+        doc = JsonSerializationMixin.jsonify_dict({
+            'measurements': self._measurements,
+            'blobs': self._blobs})
+        return doc

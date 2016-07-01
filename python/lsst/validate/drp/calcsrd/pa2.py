@@ -40,6 +40,9 @@ class PA2Measurement(MeasurementBase):
         minimum, stretch).
     verbose : bool, optional
         Output additional information on the analysis steps.
+    job : :class:`lsst.validate.drp.base.Job`, optional
+        If provided, the measurement will register itself with the Job
+        object.
     linkedBlobs : list, optional
         A `list` of additional blobs (subclasses of BlobSerializerBase) that
         can provide additional context to the measurement, though aren't
@@ -62,7 +65,8 @@ class PA2Measurement(MeasurementBase):
 
     # FIXME somehow this isn't depdendent on a median RMS (e.g., PA1 measure)
     def __init__(self, matchedDataset, bandpass, specName, verbose=False,
-                 linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
+                 linkedBlobs=None, job=None,
+                 metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
         self.bandpass = bandpass
         self.specName = specName  # spec-dependent measure because of PF1 dep
@@ -91,3 +95,6 @@ class PA2Measurement(MeasurementBase):
             PF1.getSpec(specName, bandpass=self.bandpass).value
         pf1Percentile = 100. - pf1Val
         self.value = np.percentile(np.abs(magDiffs), pf1Percentile)
+
+        if job:
+            job.registerMeasurement(self)

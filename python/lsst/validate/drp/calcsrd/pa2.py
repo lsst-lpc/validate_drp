@@ -33,6 +33,8 @@ class PA2Measurement(MeasurementBase):
     Parameters
     ----------
     matchedDataset : lsst.validate.drp.matchreduce.MatchedMultiVisitDataset
+    pa1 : PA1Measurement
+        A PA1 measurement instance.
     bandpass : str
         Bandpass (filter name) used in this measurement (e.g., `'r'`).
     specName : str
@@ -63,8 +65,7 @@ class PA2Measurement(MeasurementBase):
     label = 'PA2'
     schema = 'pa2-1.0.0'
 
-    # FIXME somehow this isn't depdendent on a median RMS (e.g., PA1 measure)
-    def __init__(self, matchedDataset, bandpass, specName, verbose=False,
+    def __init__(self, matchedDataset, pa1, bandpass, specName, verbose=False,
                  linkedBlobs=None, job=None,
                  metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
@@ -86,10 +87,8 @@ class PA2Measurement(MeasurementBase):
                 self.linkBlob(blob)
         self.linkBlob(self.matchedDataset)
 
-        matches = matchedDataset.safeMatches
-        magKey = matchedDataset.magKey
-        magDiffs = matches.aggregate(getRandomDiffRmsInMas, field=magKey)
-        # FIXME Get magdiffs from a blob supplied by PA1
+        # Use first random sample from original PA1 measurement
+        magDiffs = pa1.magDiff[0, :]
 
         pf1Val = self.metric.getSpec(specName, bandpass=self.bandpass).\
             PF1.getSpec(specName, bandpass=self.bandpass).value

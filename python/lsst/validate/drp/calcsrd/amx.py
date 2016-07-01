@@ -42,8 +42,6 @@ class AMxMeasurement(MeasurementBase):
     specName : str
         Name of a specification level to measure against (e.g., design,
         minimum, stretch).
-    numRandomShuffles : int
-        Number of times to draw random pairs from the different observations.
     width : float
         Width around fiducial distance to include. [arcmin]
     magRange : 2-element list or tuple
@@ -109,8 +107,7 @@ class AMxMeasurement(MeasurementBase):
     label = 'AMx'
     schema = 'amx-1.0.0'
 
-    def __init__(self, x, matchedDataset, bandpass,
-                 numRandomShuffles=50, width=2., magRange=None,
+    def __init__(self, x, matchedDataset, bandpass, width=2., magRange=None,
                  verbose=False,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
@@ -128,9 +125,8 @@ class AMxMeasurement(MeasurementBase):
 
         # register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately
-        self.registerParameter('num_random_shuffles', numRandomShuffles)
-        self.registerParameter('mag_range', magRange)
-        self.registerParameter('width', width)
+        self.registerParameter('width', width, units='arcsecond',
+                               label='Width', description='Width of annulus')
 
         self.matchedDataset = matchedDataset
 
@@ -143,15 +139,23 @@ class AMxMeasurement(MeasurementBase):
 
         matches = matchedDataset.safeMatches
 
-        D = self.metric.getSpec('design', bandpass=self.bandpass).D.value
+        DSpec = self.metric.getSpec('design', bandpass=self.bandpass).D
+        D = DSpec.value
+        self.registerParameter('D', DSpec)
+
         annulus = D + (width/2)*np.array([-1, +1])
 
         rmsDistances, annulus, magRange = \
             calcRmsDistances(matches, annulus, magRange=magRange,
                              verbose=verbose)
 
-        self.registerParameter('mag_range', magRange)
-        self.registerParameter('D', D)
+        self.registerParameter('annulus', annulus, units='arcsecond',
+                               label='annulus radii',
+                               description='Inner and outer radii of '
+                                           'selection annulus.')
+        self.registerParameter('mag_range', magRange, units='mag',
+                               description='Stellar magnitude selection '
+                                           'range.')
 
         if not list(rmsDistances):
             # raise ValidateErrorNoStars(

@@ -119,6 +119,10 @@ class AFxMeasurement(MeasurementBase):
 
         # register input parameters for serialization
         # note that matchedDataset is treated as a blob, separately
+        self.registerParameter('D', amx.parameters['D'])
+        self.registerParameter('annulus', amx.parameters['annulus'])
+        self.registerParameter('mag_range', amx.parameters['mag_range'])
+        self.registerParameter('AMx', amx.datum)
 
         self.matchedDataset = matchedDataset
 
@@ -130,11 +134,10 @@ class AFxMeasurement(MeasurementBase):
         self.linkBlob(self.matchedDataset)
 
         adx = getattr(self.metric.getSpec(specName, bandpass=self.bandpass),
-                      'AD{0:d}'.format(x))
-        adxSpec = adx.getSpec(specName, bandpass=self.bandpass).value
-
-        # FIXME mark AMx as a parameter or related?
-        # FIXME export adx_spec as a parameter?
+                      'AD{0:d}'.format(x))\
+            .getSpec(specName, bandpass=self.bandpass)
+        adxSpec = adx.value
+        self.registerParameter('ADx', adx.datum)
 
         if amx.value:
             self.value = 100. * np.mean(amx.rmsDistMas > amx.value + adxSpec)

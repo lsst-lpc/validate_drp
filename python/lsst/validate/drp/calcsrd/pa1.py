@@ -41,6 +41,9 @@ class PA1Measurement(MeasurementBase):
         Number of times to draw random pairs from the different observations.
     verbose : bool, optional
         Output additional information on the analysis steps.
+    job : :class:`lsst.validate.drp.base.Job`, optional
+        If provided, the measurement will register itself with the Job
+        object.
     linkedBlobs : list, optional
         A `list` of additional blobs (subclasses of BlobSerializerBase) that
         can provide additional context to the measurement, though aren't
@@ -85,7 +88,7 @@ class PA1Measurement(MeasurementBase):
     schema = 'pa1-1.0.0'
 
     def __init__(self, matchedDataset, bandpass,
-                 numRandomShuffles=50, verbose=False,
+                 numRandomShuffles=50, verbose=False, job=None,
                  linkedBlobs=None, metricYamlDoc=None, metricYamlPath=None):
         MeasurementBase.__init__(self)
         self.bandpass = bandpass
@@ -121,6 +124,9 @@ class PA1Measurement(MeasurementBase):
 
         # TODO turn this into a blob too
         self.magDiffs = None  # archive all num_random_shuffles?
+
+        if job:
+            job.registerMeasurement(self)
 
     def _calc_PA1_sample(self, groupView, magKey):
         magDiffs = groupView.aggregate(getRandomDiffRmsInMas, field=magKey)

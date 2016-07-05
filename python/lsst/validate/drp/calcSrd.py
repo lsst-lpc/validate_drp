@@ -773,5 +773,27 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
             if len(finiteEntries) > 0:
                 rmsDist = np.std(np.array(distances)[finiteEntries])
                 rmsDistances.append(rmsDist)
+                # ### plot de test distribution des D
+                meanDist=np.mean(radiansToMilliarcsec(np.array(distances)[finiteEntries]))/60000.
+                meanDistances.append( meanDist)
+                plt.close('all')
+                plt.figure(figsize=(10,6))
+                plt.title('distances D (Arcmin)')
+                plt.hist(radiansToMilliarcsec(np.array(distances)[finiteEntries])/60000., label='RMS='+str(int(radiansToMilliarcsec(rmsDist)*digits)/digits)+'mAcs\nMean='+str(int(meanDist*digits)/digits)+'Arcmin')
+                plt.legend(prop={'size':sizelegend})
+                plt.xlabel('D (Arcmin)')
+                plt.ylabel('#/bin')
+
+                plotPath = 'TempPlots/AastromDistshistD'+str(D)+'_obj1'+str(obj1)+'_obj2'+str(obj2)+'.png'
+                plt.savefig(plotPath, format="png")
+
+                plt.figure()
+                plt.scatter((np.array(VISIT)[finiteEntries]),radiansToMilliarcsec(np.array(distances)[finiteEntries]/60000.))
+                plt.xlabel('visit')
+                plt.ylabel('distances (Arcmin)')
+                plotPath = 'TempPlots/AastromDistsplotD'+str(D)+'_obj1'+str(obj1)+'_obj2'+str(obj2)+'.png'
+                plt.savefig(plotPath, format="png")
+
+                # ## fin plot de tests
 
     return rmsDistances, annulus, magRange

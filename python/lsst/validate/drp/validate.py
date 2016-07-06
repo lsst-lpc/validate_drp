@@ -36,7 +36,7 @@ from .base import ValidateErrorNoStars
 from .calcSrd import calcAM1, calcAM2, calcAM3, calcPA1, calcPA2
 from . import calcSrd
 from .check import checkAstrometry, checkPhotometry, positionRms
-from .plot import plotAstrometry, plotPhotometry, plotPA1, plotAMx
+from .plot import plotAstrometry, plotPhotometry, plotPA1, plotAMx,  plotVisitVsTime
 from .print import printPA1, printPA2, printAMx
 from .srdSpec import srdSpec, loadSrdRequirements
 from .util import getCcdKeyName, repoNameToPrefix, calcOrNone, loadParameters
@@ -87,6 +87,11 @@ def loadAndMatchData(repo, dataIds,
     mapper.addOutputField(Field[float]('base_PsfFlux_snr', "PSF flux SNR"))
     mapper.addOutputField(Field[float]('base_PsfFlux_mag', "PSF magnitude"))
     mapper.addOutputField(Field[float]('base_PsfFlux_magerr', "PSF magnitude uncertainty"))
+
+    mapper.addOutputField(Field[float]('MJD-OBS', "Date observation (mjd)"))
+    mapper.addOutputField(Field[float]('FLUXMAG0', "zero point flux"))
+    mapper.addOutputField(Field[float]('FLUXMAG0ERR', "zero point flux error" ))
+
     newSchema = mapper.getOutputSchema()
 
     # Create an object that can match multiple catalogs with the same schema
@@ -128,7 +133,19 @@ def loadAndMatchData(repo, dataIds,
         # create temporary catalog
         tmpCat = SourceCatalog(SourceCatalog(newSchema).table)
         tmpCat.extend(oldSrc, mapper=mapper)
+
+        fluxmag0 = calexpMetadata.get('FLUXMAG0')
+        fluxmag0_err = calexpMetadata.get('FLUXMAG0ERR')
+  
+        tmpCat['MJD-OBS'][:] = calexpMetadata.get('MJD-OBS')
+        tmpCat['FLUXMAG0'][:] = fluxmag0 #= calexpMetadata.get('FLUXMAG0')
+        tmpCat['FLUXMAG0ERR'][:] = fluxmag0_err# = calexpMetadata.get('FLUXMAG0ERR')
+
         tmpCat['base_PsfFlux_snr'][:] = tmpCat['base_PsfFlux_flux'] / tmpCat['base_PsfFlux_fluxSigma']
+
+
+
+
         with afwImageUtils.CalibNoThrow():
             (tmpCat['base_PsfFlux_mag'][:], tmpCat['base_PsfFlux_magerr'][:]) = \
                 calib.getMagnitude(tmpCat['base_PsfFlux_flux'],
@@ -547,6 +564,8 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         plotAstrometry(dist, magavg, struct.snr,
                        fit_params=astromStruct.params,
                        brightSnr=brightSnr, outputPrefix=outputPrefix)
+        plotVisitVsTime(struct.goodMatches,
+                        outputPrefix=outputPrefix)
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
                        fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)

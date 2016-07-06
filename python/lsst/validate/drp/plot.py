@@ -66,6 +66,25 @@ def plotOutlinedLines(ax_plot, x1, x2, x1_color=color['all'], x2_color=color['br
     ax_plot(x2, color=x2_color, linewidth=3)
 
 
+def plotVisitVsTime(goodMatches,
+                    outputPrefix=""):
+    mjd=[]
+    visit=[]
+    for group in goodMatches.groups:
+        mjd += list(group.get('MJD-OBS'))
+        visit += list(group.get('visit'))
+    plt.figure(figsize=(10,8))
+    time= mjd-min(mjd)
+    plt.scatter(time, visit )
+    plt.xlabel('t-tmin (mjd)')
+    plt.ylabel('visit')
+    plt.title('Visit in function of Time (mjd)')
+    plotPath = outputPrefix + 'VisitVsTime.png'
+    plt.savefig(plotPath, format="png")
+     #plt.show()
+ 
+
+
 def plotAstrometry(dist, mag, snr, fit_params=None, brightSnr=100,
                    outputPrefix=""):
     """Plot angular distance between matched sources from different exposures.

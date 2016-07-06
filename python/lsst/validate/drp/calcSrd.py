@@ -30,11 +30,18 @@ import lsst.pipe.base as pipeBase
 from .base import ValidateErrorNoStars
 from .util import averageRaFromCat, averageDecFromCat
 from .srdSpec import srdSpec, getAstrometricSpec
-from .io import ParametersSerializerBase, MetricSerializer, DatumSerializer
 
-# ###
-import pylab as plt
-# ###
+#from .validate import sourceFlux
+#sourceFluxField = sourceFlux()
+#print('sourceFluxField-------------------------------',sourceFluxField)
+
+import matplotlib.pylab as plt
+
+# sourceFluxField = 'base_PsfFlux'
+def sourceFlux(sourceFluxField = 'base_PsfFlux'):# 'base_CircularApertureFlux_6_0'):#'base_PsfFlux'):#
+    return sourceFluxField
+sourceFluxField = sourceFlux()
+
 
 def calcPA1(matches, magKey, numRandomShuffles=50, verbose=False):
     """Calculate the photometric repeatability of measurements across a set of observations.
@@ -156,38 +163,23 @@ def doCalcPA1(groupView, magKey):
        The RMS, inter-quartile range,
        differences between pairs of observations, mean mag of each object.
     """
-
+    
     magDiffs = groupView.aggregate(getRandomDiffRmsInMas, field=magKey)
+
+   
+    #print("============<<<<<<<<<<<<<<<<<<<<<<<<<<<<<=======================",len( magDiffs))
     magMean = groupView.aggregate(np.mean, field=magKey)
+  #  import pylab as P
+ #   P.hist(  magMean)
+  #  P.figure()
+  #  P.hist(magDiffs)
+  #  P.show()
+    #print("============<<<=======================",len( magMean))
     rmsPA1, iqrPA1 = computeWidths(magDiffs)
     return pipeBase.Struct(rms=rmsPA1, iqr=iqrPA1,
                            rmsUnits='mmag', iqrUnits='mmag',
                            magDiffs=magDiffs, magMean=magMean,
                            magDiffsUnits='mmag', magMeanUnits='mag')
-
-
-class PA1ParamSerializer(ParametersSerializerBase):
-    """Serialize parameters used by PA1 metric measurement."""
-
-    def __init__(self, num_random_shuffles):
-        # FIXME note that num_random_shuffles is hidden as a default param
-        # of calcPA1. We need a better of exposing full provenance
-        ParametersSerializerBase.__init__(self)
-        self._doc['num_random_shuffles'] = num_random_shuffles
-
-    @property
-    def schema_id(self):
-        return 'PA1-parameters-v1.0.0'
-
-
-class PA1Serializer(MetricSerializer):
-    """Serializer for PA1 metric definition."""
-    def __init__(self):
-        MetricSerializer.__init__(
-            self,
-            name='PA1',
-            reference='LPM-17',
-            description='Median RMS of visit-to-visit relative photometry.')
 
 
 def calcPA2(groupView, magKey, defaultLevel='design', verbose=False):
@@ -280,57 +272,6 @@ def calcPA2(groupView, magKey, defaultLevel='design', verbose=False):
                            PF1_spec=srdSpec.PF1, PA2_spec=PA2_spec)
 
 
-class PA2ParamSerializer(ParametersSerializerBase):
-    """Serialize parameters used by PA1 metric measurement."""
-
-    def __init__(self, num_random_shuffles=None, PF1=None):
-        ParametersSerializerBase.__init__(self)
-        assert isinstance(num_random_shuffles, int)
-        assert isinstance(PF1, DatumSerializer)
-        self._doc['num_random_shuffles'] = num_random_shuffles
-        self._doc['PF1'] = PF1
-
-    @property
-    def schema_id(self):
-        return 'PA2-parameters-v1.0.0'
-
-
-class PA2Serializer(MetricSerializer):
-    """Serializer for PA2 metric definition."""
-    def __init__(self, spec_level):
-        MetricSerializer.__init__(
-            self,
-            name='PA2',
-            spec_level=spec_level,
-            reference='LPM-17',
-            description='Mags from mean relative photometric RMS that '
-                        'encompasses PF1 of measurements.')
-
-
-class PF1ParamSerializer(ParametersSerializerBase):
-    """Serialize parameters used by PA1 metric measurement."""
-
-    def __init__(self, PA2=None):
-        ParametersSerializerBase.__init__(self)
-        assert isinstance(PA2, DatumSerializer)
-        self._doc['PA2'] = PA2
-
-    @property
-    def schema_id(self):
-        return 'PF1-parameters-v1.0.0'
-
-
-class PF1Serializer(MetricSerializer):
-    """Serializer for PF1 metric definition."""
-    def __init__(self, spec_level):
-        MetricSerializer.__init__(
-            self,
-            name='PF1',
-            spec_level=spec_level,
-            reference='LPM-17',
-            description='Fraction of measurements more than PA2')
-
-
 def getRandomDiffRmsInMas(array):
     """Calculate the RMS difference in mmag between a random pairs of magnitudes.
 
@@ -400,8 +341,10 @@ def getRandomDiff(array):
         substantially larger than a float.  And that would only make
         sense for objects that had a subtraction operation defined.
     """
+    #print('----------------------------hiodhrgioehrighhihio', array,' len(array)', len(array))
     copy = array.copy()
     np.random.shuffle(copy)
+   # print('----------------------------hioutyiutiudhrgioehrighhihio',copy[0] - copy[1])# copy)
     return copy[0] - copy[1]
 
 
@@ -444,11 +387,17 @@ def sphDist(ra1, dec1, ra2, dec2):
     """
     # Haversine
     dra = ra1-ra2
+   # print('dra', dra)
     ddec = dec1-dec2
     a = np.square(np.sin(ddec/2)) + \
         np.cos(dec1)*np.cos(dec2)*np.square(np.sin(dra/2))
     dist = 2 * np.arcsin(np.sqrt(a))
+    
+    ### test approx
+ #   distance = np.sqrt(np.square((ra1-ra2)*np.cos(dec2)) + np.square((dec1-dec2)))
+ #   print( 'distance approx',distance,', dist vraie', dist)
 
+   # print('dist', dist)
     # This is what the law of cosines would look like
 #    dist = np.arccos(np.sin(dec1)*np.sin(dec2) + np.cos(dec1)*np.cos(dec2)*np.cos(ra1 - ra2))
 
@@ -461,7 +410,8 @@ def sphDist(ra1, dec1, ra2, dec2):
 
 
 def matchVisitComputeDistance(visit_obj1, ra_obj1, dec_obj1,
-                              visit_obj2, ra_obj2, dec_obj2):
+                              visit_obj2, ra_obj2, dec_obj2,
+                              visit_output=False):
     """Calculate obj1-obj2 distance for each visit in which both objects are seen.
 
     For each visit shared between visit_obj1 and visit_obj2,
@@ -487,6 +437,8 @@ def matchVisitComputeDistance(visit_obj1, ra_obj1, dec_obj1,
     list of float
         spherical distances (in radians) for matching visits.
     """
+    visit=[]
+
     distances = []
     for i in range(len(visit_obj1)):
         for j in range(len(visit_obj2)):
@@ -496,8 +448,20 @@ def matchVisitComputeDistance(visit_obj1, ra_obj1, dec_obj1,
                     distances.append(sphDist(ra_obj1[i], dec_obj1[i],
                                              ra_obj2[j], dec_obj2[j]))
 
-    return distances
-
+                    if visit_output:#
+                        visit.append(visit_obj1[i])#
+   
+#    plt.figure()
+#    plt.title('test visit dist')
+#    plt.scatter(visit,radiansToMilliarcsec(distances)/60000.)
+#    plt.figure()
+ #   plt.title('hist dist test')
+#    plt.hist(radiansToMilliarcsec(distances)/60000.)
+   # plt.show()
+    if visit_output:#
+        return distances, visit#
+    else:#
+        return distances
 
 
 def arcminToRadians(arcmin):
@@ -510,8 +474,11 @@ def radiansToMilliarcsec(rad):
 
 def calcAM1(*args, **kwargs):
     """Calculate the SRD definition of astrometric performance for AM1
-
+   
     See `calcAMx` for more details."""
+
+    # print('###########--- srdSpec.D1',srdSpec.D1)
+
     return calcAMx(*args, x=1, D=srdSpec.D1, width=2, **kwargs)
 
 
@@ -519,6 +486,7 @@ def calcAM2(*args, **kwargs):
     """Calculate the SRD definition of astrometric performance for AM2
 
     See `calcAMx` for more details."""
+    # print('###########--- srdSpec.D2',srdSpec.D2)
     return calcAMx(*args, x=2, D=srdSpec.D2, width=2, **kwargs)
 
 
@@ -526,6 +494,7 @@ def calcAM3(*args, **kwargs):
     """Calculate the SRD definition of astrometric performance for AM3
 
     See `calcAMx` for more details."""
+    # print('###########--- srdSpec.D13',srdSpec.D3)
     return calcAMx(*args, x=3, D=srdSpec.D3, width=2, **kwargs)
 
 
@@ -603,10 +572,10 @@ def calcAMx(groupView, D=5, width=2, magRange=None,
     AMx_spec, AFx_spec, ADx_spec = getAstrometricSpec(x=x, level=level)
 
     annulus = D + (width/2)*np.array([-1, +1])
-
+    ### regarder ici pour la question des paires separees par D
     rmsDistances, annulus, magRange = \
         calcRmsDistances(groupView, annulus, magRange=magRange, verbose=verbose)
-
+  
     if not list(rmsDistances):
         raise ValidateErrorNoStars('No stars found that are %.1f--%.1f arcmin apart.' %
                                    (annulus[0], annulus[1]))
@@ -616,6 +585,7 @@ def calcAMx(groupView, D=5, width=2, magRange=None,
     fractionOver = np.mean(np.asarray(rmsDistMas) > AMx_spec+ADx_spec)
     percentOver = 100*fractionOver
 
+   # print('AMx(x=',x,')=',AMx)
     return pipeBase.Struct(
         name='AM%d' % x,
         AMx=AMx,
@@ -638,69 +608,6 @@ def calcAMx(groupView, D=5, width=2, magRange=None,
         afxUnits='%',
         adxUnits='mas',
     )
-
-
-class AMxParamSerializer(ParametersSerializerBase):
-    """Serialize parameters used by AMx metric measurement."""
-
-    def __init__(self, D=None, annulus=None, mag_range=None):
-        ParametersSerializerBase.__init__(self)
-        assert isinstance(D, DatumSerializer)
-        assert isinstance(annulus, DatumSerializer)
-        assert isinstance(mag_range, DatumSerializer)
-        self._doc['D'] = D
-        self._doc['annulus'] = annulus
-        self._doc['mag_range'] = mag_range
-
-    @property
-    def schema_id(self):
-        return 'AMx-parameters-v1.0.0'
-
-
-class AMxSerializer(MetricSerializer):
-    """Serializer for AMx metric definition."""
-    def __init__(self, x):
-        MetricSerializer.__init__(
-            self,
-            name='AM{0:d}'.format(int(x)),
-            reference='LPM-17',
-            description='Median RMS of the astrometric distance distribution '
-                        'for stellar pairs with separation of D arcmin '
-                        '(repeatability)')
-
-
-class AFxParamSerializer(ParametersSerializerBase):
-    """Serialize parameters used by AFx metric measurement."""
-
-    def __init__(self, AMx=None, ADx=None,
-                 D=None, annulus=None, mag_range=None):
-        ParametersSerializerBase.__init__(self)
-        assert isinstance(AMx, DatumSerializer)
-        assert isinstance(ADx, DatumSerializer)
-        assert isinstance(D, DatumSerializer)
-        assert isinstance(annulus, DatumSerializer)
-        assert isinstance(mag_range, DatumSerializer)
-        self._doc['AMx'] = AMx
-        self._doc['ADx'] = ADx
-        self._doc['D'] = D
-        self._doc['annulus'] = annulus
-        self._doc['mag_range'] = mag_range
-
-    @property
-    def schema_id(self):
-        return 'AFx-parameters-v1.0.0'
-
-
-class AFxSerializer(MetricSerializer):
-    """Serializer for AFx metric definition."""
-    def __init__(self, x=None, level=None):
-        MetricSerializer.__init__(
-            self,
-            name='AF{0:d}'.format(int(x)),
-            spec_level=level,
-            reference='LPM-17',
-            description='Fraction of pairs that deviate by AD{0:d} '
-                        'from median AM{0:d} ({1})'.format(x, level))
 
 
 def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
@@ -735,11 +642,16 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     # First we make a list of the keys that we want the fields for
     importantKeys = [groupView.schema.find(name).key for
                      name in ['id', 'coord_ra', 'coord_dec',
-                              'object', 'visit', 'base_PsfFlux_mag']]
+                              'object', 'visit', sourceFluxField+'_mag']]
+    # print('*-*-*-*-*-*-*', importantKeys)
+   # importantKeys = [groupView.schema.find(name).key for
+   #                  name in ['id', 'coord_ra', 'coord_dec',
+   #                           'object', 'visit', 'base_PsfFlux_mag']]
 
     # Includes magRange through closure
     def magInRange(cat):
-        mag = cat.get('base_PsfFlux_mag')
+        mag = cat.get( sourceFluxField+'_mag')
+       # mag = cat.get('base_PsfFlux_mag')
         w, = np.where(np.isfinite(mag))
         medianMag = np.median(mag[w])
         return magRange[0] <= medianMag and medianMag < magRange[1]
@@ -747,11 +659,15 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     groupViewInMagRange = groupView.where(magInRange)
 
     # List of lists of id, importantValue
+   # print( importantKeys )
     matchKeyOutput = [obj.get(key) for key in importantKeys for obj in groupViewInMagRange.groups]
+    #print('lenmatchKeyOutput', len( matchKeyOutput)) 
 
     jump = len(groupViewInMagRange)
 
+
     ra = matchKeyOutput[1*jump:2*jump]
+   # print('----------------------------------------------------------------lenRA',len(ra))
     dec = matchKeyOutput[2*jump:3*jump]
     visit = matchKeyOutput[4*jump:5*jump]
 
@@ -759,63 +675,161 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     # `aggregate` calulates a quantity for each object in the groupView.
     meanRa = groupViewInMagRange.aggregate(averageRaFromCat)
     meanDec = groupViewInMagRange.aggregate(averageDecFromCat)
+#    print('ooooAVERAGERAFROMCAT',averageRaFromCat)
+#    print('ooooMEANRA',meanRa)
 
     annulusRadians = arcminToRadians(annulus)
-
+ #   print('annulus +++++++++++++', annulus)
     rmsDistances = list()
-    # ### pour les plots
+    
     D=(annulus[0]+annulus[1])/2#
     meanDistances = list() #
     rms_obj_racosdecs = [] #
     rms_obj_decs = [] #
-    sizelegend=12
-    digits=1000.
-    # ##
     for obj1, (ra1, dec1, visit1) in enumerate(zip(meanRa, meanDec, visit)):
+     #   print('obj1', obj1,(ra1, dec1, visit1))# 
+        #print('rappel annulusRadians',annulusRadians)#
         dist = sphDist(ra1, dec1, meanRa[obj1+1:], meanDec[obj1+1:])
+
+        rms_obj_racosdec = radiansToMilliarcsec(np.std(ra[obj1]*np.mean(np.cos(dec[obj1]))))#
+
+        rms_obj_racosdecs.append(rms_obj_racosdec)#
+        rms_obj_dec = radiansToMilliarcsec(np.std(dec[obj1]))#
+        rms_obj_decs.append(rms_obj_dec)#
+        sizelegend=12
+        digits=1000.
+
+        plt.close('all')
+        plt.figure()
+        plt.title('racosdec'+str(obj1))
+
+        plt.hist(ra[obj1]*np.mean(np.cos(dec[obj1])), label='RMS='+str(int(rms_obj_racosdec*digits)/digits)+'mAcs\nMean='+str(int(np.mean(ra[obj1]*np.mean(np.cos(dec[obj1])))*digits)/digits)+'rad')
+        plt.legend(prop={'size':sizelegend})
+        plt.xlabel('ra cos(dec)')
+        plt.ylabel('#/bin')
+        plotPath = 'TempPlots/racosdec_D'+str(D)+'_obj1'+str(obj1)+'.png'
+        plt.savefig(plotPath, format="png")
+  
+        plt.figure()
+        plt.title('dec'+str(obj1))
+        plt.hist(dec[obj1], label='RMS='+str(int(rms_obj_dec*digits)/digits)+'mAcs\nMean='+str(int(np.mean(dec[obj1])*digits)/digits)+'rad')
+        plt.legend(prop={'size':sizelegend})
+        plt.xlabel('dec')
+        plt.ylabel('#/bin')
+        
+        plotPath = 'TempPlots/dec_D'+str(D)+'_obj1'+str(obj1)+'.png'
+        plt.savefig(plotPath, format="png")
+        #plt.show()
+
+
+  #      print('dist a la moyenne', dist)#
+  #      print('dist a la moyenne (convert mas)',radiansToMilliarcsec( dist))#<
         objectsInAnnulus, = np.where((annulusRadians[0] <= dist) & (dist < annulusRadians[1]))
-        objectsInAnnulus += 1 + obj1 # Correction des indices pour avoir les bons D
+    #    print('objectsInAnnulus',objectsInAnnulus)
+
+        objectsInAnnulus += 1 + obj1 # Correction des indices
+    ##    print('objectsInAnnulus corrige',objectsInAnnulus)
+  #      print(' objectsInAnnulus', objectsInAnnulus)
+
+   #     print('dist (arcmin)',radiansToMilliarcsec(dist)/60000)#
+  
         for obj2 in objectsInAnnulus:
-            distances = matchVisitComputeDistance(visit[obj1], ra[obj1], dec[obj1],
-                                                  visit[obj2], ra[obj2], dec[obj2])
- 
+ ####           print('test dist in objectInAnnulus (arcmin)', radiansToMilliarcsec(dist[obj2-1-obj1])/60000) #ok pour les distances moyennees par groupe, mais probleme pour calcul ulterieur....
+         #   print('visit[obj1], ra[obj1], dec[obj1]',visit[obj1], ra[obj1], dec[obj1])
+
+       #     plt.close('all')
+       #     plt.figure()
+       #     plt.title('Ra, dec mean and real')
+       #     plt.scatter(meanRa[obj1], meanDec[obj1],marker='*', s=36, c='r')
+        #    plt.scatter(meanRa[obj2], meanDec[obj2],marker='*', s=36, c='r')
+       #     plt.scatter( ra[obj1], dec[obj1], c='g')
+        #    plt.scatter( ra[obj2], dec[obj2])
+
+            distances, VISIT = matchVisitComputeDistance(visit[obj1], ra[obj1], dec[obj1],
+                                                         visit[obj2], ra[obj2], dec[obj2],
+                                                         visit_output = True )
             if not distances:
                 if verbose:
                     print("No matching visits found for objs: %d and %d" % (obj1, obj2))
                 continue
 
             finiteEntries, = np.where(np.isfinite(distances))
+            
+          #  finiteEntries, = np.where((np.isfinite(distances)) & (annulusRadians[0] <= distances) & (distances < annulusRadians[1]))# test correction (plus de distances non comprises dans l'intervalle)
             if len(finiteEntries) > 0:
+
                 rmsDist = np.std(np.array(distances)[finiteEntries])
                 rmsDistances.append(rmsDist)
-                # ### pour plot de test distribution des D
-                meanDist=np.mean(radiansToMilliarcsec(np.array(distances)[finiteEntries]))/60000.
-                meanDistances.append(meanDist)
-                # ## 
 
-    # ### plots de test distribution des D
+                meanDist=np.mean(radiansToMilliarcsec(np.array(distances)[finiteEntries]))/60000.#
+                meanDistances.append( meanDist)#
+                plt.close('all')
+                plt.figure(figsize=(10,6))
+                plt.title('distances D (Arcmin)')
+                plt.hist(radiansToMilliarcsec(np.array(distances)[finiteEntries])/60000., label='RMS='+str(int(radiansToMilliarcsec(rmsDist)*digits)/digits)+'mAcs\nMean='+str(int(meanDist*digits)/digits)+'Arcmin')
+                plt.legend(prop={'size':sizelegend})
+                plt.xlabel('D (Arcmin)')
+                plt.ylabel('#/bin')
+
+                plotPath = 'TempPlots/AastromDistshistD'+str(D)+'_obj1'+str(obj1)+'_obj2'+str(obj2)+'.png'
+                plt.savefig(plotPath, format="png")
+
+                plt.figure()
+                plt.scatter((np.array(VISIT)[finiteEntries]),radiansToMilliarcsec(np.array(distances)[finiteEntries]/60000.))
+                plt.xlabel('visit')
+                plt.ylabel('distances (Arcmin)')
+                plotPath = 'TempPlots/AastromDistsplotD'+str(D)+'_obj1'+str(obj1)+'_obj2'+str(obj2)+'.png'
+                plt.savefig(plotPath, format="png")
+
+                #plt.show()
+
     if (int(D)==5 or int(D)==20):
-
+        digits = 1000
         plt.figure(figsize=(11,7))
         plt.title('meanDists (arcmin) pour D='+str(D))
+        
         plt.hist( meanDistances, label='RMS='+str(int(np.std(meanDistances)*digits)/digits)+'Arcmin\nMean='+str(int(np.mean(meanDistances)*digits)/digits)+'Arcmin\nMedian='+str(int(np.median(meanDistances)*digits)/digits)+'Arcmin')
         plt.legend(prop={'size':sizelegend})
         plt.xlabel('meanDists (Arcmin)')
         plt.ylabel('#/bin')
-        plotPath = 'AstromMeanDists'+str(D)+'.png'
+        plotPath = 'TempPlots/AastromMeanDists'+str(D)+'.png'
         plt.savefig(plotPath, format="png")
         
-
         plt.figure(figsize=(11,7))
-        plt.title('rmsDist (equiv plot AMx) pour D='+str(D))
+        plt.title('rmsDist equiv AMx nomalement pour D='+str(D))
         plt.hist(radiansToMilliarcsec(rmsDistances), label='RMS='+str(int(np.std(radiansToMilliarcsec(rmsDistances))*digits)/digits)+'mArcs\nMean='+str(int(np.mean(radiansToMilliarcsec(rmsDistances))*digits)/digits)+'mArcs\nMedian='+str(int(np.median(radiansToMilliarcsec(rmsDistances))*digits)/digits)+'mArcs')
         plt.legend(prop={'size':sizelegend})
         plt.xlabel('meanDists (Arcmin)')
         plt.xlabel('rmsDists (mArcs)')
         plt.ylabel('#/bin')
-        plotPath = 'AstromRmsDists'+str(D)+'.png'
+        plotPath = 'TempPlots/AastromRmsDists'+str(D)+'.png'
         plt.savefig(plotPath, format="png")
       #  plt.show()
+
+        plt.figure(figsize=(11,7))
+        plt.title('rms_obj_racosdecs  ='+str(D))
+        plt.hist(rms_obj_racosdecs, label='RMS='+str(int(np.std(rms_obj_racosdecs)*digits)/digits)+'mArcs')#\nMedian='+str(int(np.median(rms_obj_racosdecs)*digits)/digits)+'mArcs')
+        plt.axvline(np.median(rms_obj_racosdecs), 0, 1, linewidth=2, color='red', label='Median='+str(int(np.median(rms_obj_racosdecs)*digits)/digits)+'mArcs')
+        plt.legend(prop={'size':sizelegend})
+        plt.xlabel('ra cos(dec) (mAcs)')
+        plt.ylabel('#/bin')
+
+        plotPath = 'TempPlots/Aobj_racosdecs_D'+str(D)+'.png'
+        plt.savefig(plotPath, format="png")
+
+        plt.figure(figsize=(11,7))
+        plt.title('rms_obj_decs  ='+str(D))
+        plt.hist(rms_obj_decs, label='RMS='+str(int(np.std(rms_obj_decs)*digits)/digits)+'mArcs\n')#Median='+str(int(np.median(rms_obj_decs)*digits)/digits)+'mArcs')
+        plt.axvline(np.median(rms_obj_decs), 0, 1, linewidth=2, color='red', label='Median='+str(int(np.median(rms_obj_decs)*digits)/digits)+'mArcs')#'%s: %.0f %s' % (AMx.name, AMx.AMx_spec, AMx.amxUnits))
+        plt.legend(prop={'size':sizelegend})
+        plt.xlabel('dec (mAcs)')
+        plt.ylabel('#/bin')
+
+        plotPath = 'TempPlots/Aobj_decs_D'+str(D)+'.png'
+        plt.savefig(plotPath, format="png")
+
+      #  plt.show()
+
     plt.close('all')
-    # ##
+        #            print(' rmsDist', rmsDist)
     return rmsDistances, annulus, magRange

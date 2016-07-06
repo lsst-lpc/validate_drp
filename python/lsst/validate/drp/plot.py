@@ -1,4 +1,4 @@
-# LSST Data Management System
+# LSST Management System
 # Copyright 2008-2016 AURA/LSST.
 #
 # This product includes software developed by the
@@ -25,6 +25,13 @@ import numpy as np
 import scipy.stats
 from .check import fitExp, fitAstromErrModel, fitPhotErrModel, expModel, astromErrModel, photErrModel
 
+from mpl_toolkits.mplot3d import Axes3D
+
+from .io import saveKpmToJson, loadKpmFromJson # test pour lire les *.json
+from .calcSrd import sourceFlux # pour choisir le flux en entree
+sourceFluxField = sourceFlux()
+
+
 # Plotting defaults
 plt.rcParams['axes.linewidth'] = 2
 plt.rcParams['mathtext.default'] = 'regular'
@@ -34,6 +41,11 @@ plt.rcParams['axes.labelsize'] = 20
 
 color = {'all': 'grey', 'bright': 'blue',
          'iqr': 'green', 'rms': 'red'}
+
+
+def movingaverage(interval, window_size):
+    window = np.ones(int(window_size))/float(window_size)
+    return np.convolve(interval, window, 'same')
 
 
 def plotOutlinedLinesHorizontal(ax, *args, **kwargs):
@@ -66,8 +78,519 @@ def plotOutlinedLines(ax_plot, x1, x2, x1_color=color['all'], x2_color=color['br
     ax_plot(x2, color=x2_color, linewidth=3)
 
 
+def plotHistDist(dist,
+                 outputPrefix=""): ###
+    "plot un histo simple des distances"
+    plt.hist(dist, bins=50, histtype='stepfilled',alpha=0.75)
+    plt.title('Histo Dist')
+    plt.xlabel('Separation from reference [mas]')
+    plt.ylabel('N')
+    plotPath = outputPrefix+"HistDist.png"
+    plt.savefig(plotPath, format="png")
+    #plt.show()
+
+
+def plotRaDec(RaMean, DecMean, Ra, Dec, dists=None,
+              outputPrefix=""):
+    plt.figure(figsize=(15,10))
+    plt.title('Plot Matching')
+    plt.scatter(Ra, Dec)
+
+    if dists != None: 
+    #    fig = plt.figure()
+     ##   ax = fig.add_subplot(111, projection='3d')
+    #    ax.scatter(RaMean, DecMean, dists, c='r', marker='*')
+    #    ax.set_xlabel('Ra')
+    #    ax.set_ylabel('Dec')
+    #    ax.set_zlabel('dist')
+     #   plt.show()
+ 
+        print(dists)
+        plt.scatter(RaMean, DecMean, c=dists, marker='*', s=128)
+        plt.colorbar(label='RMS RA/Dec separation (mas)')
+    else:
+        plt.scatter(RaMean, DecMean, marker='*', color='r')
+    plt.xlabel('Ra')
+    plt.xlim(min(Ra), max(Ra))
+    plt.ylim(min(Dec), max(Dec))
+    plt.ylabel('Dec')
+    plotPath = outputPrefix+"PlotRaDec.png"
+    plt.savefig(plotPath, format="png")
+   # plt.show()##
+
+
+def plotVisitVsTime(goodMatches,
+                    outputPrefix=""):
+    mjd=[]
+    visit=[]
+    for group in goodMatches.groups:
+        mjd += list(group.get('MJD-OBS'))
+        visit += list(group.get('visit'))
+    plt.figure(figsize=(10,8))
+    time= mjd-min(mjd)
+    plt.scatter(time, visit )
+    plt.xlabel('t-tmin (mjd)')
+    plt.ylabel('visit')
+    plt.title('Visit in function of Time (mjd)')
+    plotPath = outputPrefix+'VisitVsTime.png'
+    plt.savefig(plotPath, format="png")
+    #plt.show()
+
+
+def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
+                                fit_params=None, brightSnr=100,
+                                outputPrefix=""):
+    #to do (add cut snr (voir plotastrometry)).(essayer de dedensifier cette fonction)
+
+    sizelegend=12 # taille des legendes
+    digits=1000. # precision des valeurs dans les legendes des histos
+    #### astrometry and photometry vs time ####
+    gooddra = [] #goodMatches.aggregate(np.ones,'coord_ra')
+    goodddec = [] # goodMatchesaggregate(np.ones,'coord_dec')
+
+    print("LONGUEUR MAGRMS", len(mmagrms))
+    print("LONGUEUR dist", len(dist))
+    print(" MAGRMS", mmagrms)
+    compt = 0
+    goodmjd = []
+    radToDeg = 180./np.pi
+    degToArcs = 3600
+    radToArcs = radToDeg* degToArcs
+    ccds = []
+    sourcemag = []
+    sourcedmag = []
+    sourcesnr = []
+    #dist=[]
+    dist_calc = []
+    FluxMag0s = []
+    FluxMag0Errs = []
+
+    groupMEANracosdec = []
+    groupMEANdec = []
+    groupRMSracosdec = []
+    groupRMSdec = []
+    posRMS = []
+
+    meansnr = []
+    for group in goodMatches.groups:
+        #  group_schema=group.getSchema()
+        # print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        # dist +=list(group.get('dist'))
+        #dist_calc +=
+        
+        #dist_calc +=
+        
+        dra = ((group.get('coord_ra') - np.mean(group.get('coord_ra'))) * np.mean(np.cos(group.get('coord_dec'))))*radToArcs*1000
+        ddec = (group.get('coord_dec') - np.mean(group.get('coord_dec')))*radToArcs*1000
+        
+        gooddra += list(dra )
+        goodddec += list(ddec)
+        
+        groupMEANracosdec.append(np.mean(group.get('coord_ra'))* np.mean(np.cos(group.get('coord_dec'))))
+        groupMEANdec.append(np.mean(group.get('coord_dec')))
+        
+        groupRMSracosdec.append( np.std(dra))
+        groupRMSdec.append( np.std(ddec))
+        posRMS.append(np.sqrt( (np.std(dra))**2 + (np.std(ddec))**2))
+        
+        goodmjd += list(group.get('MJD-OBS'))
+        sourcemag += list((group.get(sourceFluxField+"_mag"))*1000)
+        sourcedmag += list((group.get(sourceFluxField+"_mag") - np.mean(group.get(sourceFluxField+"_mag")))*1000)
+        sourcesnr += list(group.get((sourceFluxField+"_snr")))
+
+        meansnr.append(np.mean(group.get(sourceFluxField+"_snr")))
+
+        FluxMag0s += list(group.get('FLUXMAG0'))
+        FluxMag0Errs += list(group.get('FLUXMAG0ERR'))
+
+        ccds += list(group.get('ccd'))
+    
+  # to do : ajouter une possibilite de remove des outliers
+  #plot dist rs
+ #   print('??(groupMEANracosdec, groupRMSracosdec)',groupMEANracosdec, groupRMSracosdec)
+  #  print('len SNR dans plotastrometry', len(snr))
+
+    bright, = np.where(np.asarray(meansnr) > brightSnr)
+   # bright2, = np.where(np.asarray(snr) > brightSnr) # ???  # vient de goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey) dans validate.py# 
+
+#    print( 'goodPsfSnr (calcule dans le truc officiel de validate.py : ', snr) # etrange que ce n'est pas toujours pareil que meansnr (bien que ca reste semblable), alors que la fonction mean est appliquee avec aggregate ici....
+  #  print('')
+  #  print(' meansnr',   meansnr)
+#    diffsnr= np.array(meansnr) - np.array(snr)
+#    rapsnr=np.array(meansnr) / np.array(snr)
+   # print('diff snr officiel calul ici :', diffsnr)
+  #  print('moyenne, mediane, min, max diffsnr',np.mean(diffsnr),np.median(diffsnr),np.min(diffsnr),np.max(diffsnr))
+ #   print('moyenne, mediane, min, max rapsnr',np.mean(rapsnr),np.median(rapsnr),np.min(rapsnr),np.max(rapsnr))
+
+   # numMatched = len(dist)
+  #  dist_median = np.median(dist)
+  #  bright_dist_median = np.median(np.asarray(dist)[bright])
+
+  
+
+
+
+
+  #  print('bright',bright)
+ #   print('maxbright',max(bright))
+   # print('bright2',bright2)
+ #   print('maxbright2-bright1',bright2-bright)
+   # print('len(groupRMSracosdec)',len(groupRMSracosdec))
+
+
+    groupRMSracosdec_bright = np.array(groupRMSracosdec)[bright]
+    groupRMSdec_bright = np.array(groupRMSdec)[bright]
+    posRMS_bright = np.array(posRMS)[bright]
+
+
+    bright_outliers = np.where((np.asarray(posRMS_bright-np.median(posRMS_bright)) < 5*np.std(posRMS_bright)))# and  (np.asarray(groupRMSracosdec_bright-np.median(groupRMSracosdec_bright)) < 5*np.std(groupRMSracosdec_bright)) and (np.asarray(groupRMSdec_bright-np.median(groupRMSdec_bright)) < 5*np.std(groupRMSdec_bright)))
+
+
+
+
+    posRMS_bright_outliers = posRMS_bright[bright_outliers]
+    groupRMSracosdec_bright_outliers = groupRMSracosdec_bright[bright_outliers]
+    groupRMSdec_bright_outliers = groupRMSdec_bright[bright_outliers]
+
+
+    groupMEANracosdec=np.array(groupMEANracosdec)
+
+    plt.close('all')
+    plt.figure()
+    plt.title('racosdec')
+    plt.scatter(groupMEANracosdec, groupRMSracosdec, color=color['all'], label='all')
+    plt.scatter(groupMEANracosdec[bright],   groupRMSdec_bright, color=color['bright'], label='bright')
+    plt.scatter((groupMEANracosdec[bright])[bright_outliers],   (groupRMSdec_bright)[bright_outliers], color='g', label='bright outliers')
+    plt.legend()
+    plt.xlabel('mean ra cosdec')
+    plt.ylabel('rms ra cos dec')
+
+    #plot(x,y,"k.")
+  #  y_av = movingaverage(groupRMSracosdec, 100)
+   # plt.plot(groupMEANracosdec, y_av,"r")
+  #  plt.xlim(0,1000)
+   # plt.grid(True)
+   # plt.show()
+
+
+
+    plt.figure()
+    plt.title('racosdec')
+    plt.hist(groupRMSracosdec, bins=50, histtype ='stepfilled', alpha=0.8, color='b')# label='RMS='+str(int(np.std(groupRMSracosdec)*digits)/digits)+'mAcs\nMean='+str(int(np.mean(groupRMSracosdec)*digits)/digits)+'mAcs',alpha=0.5)#,histtype ='stepfilled',alpha=0.8,color='r')
+    plt.hist(groupRMSracosdec_bright,histtype ='stepfilled',alpha=0.8,color='r')
+    plt.axvline(np.median(groupRMSracosdec), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(groupRMSracosdec)*digits)/digits)+'mArcs')
+    plt.axvline(np.median(groupRMSracosdec_bright), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(groupRMSracosdec_bright)*digits)/digits)+'mArcs')
+    plt.hist(groupRMSracosdec_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')
+    plt.axvline(np.median( groupRMSracosdec_bright_outliers), 0, 1, linewidth=2, color='green', label='Median 5sigm clipp='+str(int(np.median( groupRMSracosdec_bright_outliers )*digits)/digits)+'mArcs')
+
+
+    plt.xlabel('RMS RAcosDec')
+    plt.ylabel('#/bin')
+    plt.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'RAcosDecRMS.png'
+    plt.savefig(plotPath, format="png")
+
+
+    plt.figure()
+    plt.title('dec')
+    plt.hist(groupRMSdec, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
+    plt.hist(groupRMSdec_bright,histtype ='stepfilled',alpha=0.8,color='r')
+
+    plt.hist(groupRMSdec_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')
+ 
+    plt.axvline(np.median(groupRMSdec), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(groupRMSdec)*digits)/digits)+'mArcs')
+    plt.axvline(np.median(groupRMSdec_bright), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(groupRMSdec_bright)*digits)/digits)+'mArcs')
+    plt.axvline(np.median( groupRMSdec_bright_outliers), 0, 1, linewidth=2, color='green', label='Median 5sigm clipp='+str(int(np.median( groupRMSdec_bright_outliers )*digits)/digits)+'mArcs')
+
+
+    plt.xlabel('RMS Dec')
+    plt.ylabel('#/bin')
+    plt.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'DecRMS.png'
+    plt.savefig(plotPath, format="png")
+
+
+    plt.figure()
+    plt.title('Test reproduction dists du plotAstrometry')
+    plt.hist(posRMS, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
+    plt.hist(posRMS_bright,histtype ='stepfilled',alpha=0.8,color='r')
+    plt.hist(posRMS_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')
+    plt.axvline(np.median(posRMS), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(posRMS)*digits)/digits)+'mArcs')
+    plt.axvline(np.median(posRMS_bright), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(posRMS_bright)*digits)/digits)+'mArcs')
+
+ 
+ #posRMS_bright_outliers 
+    plt.axvline(np.median( posRMS_bright_outliers), 0, 1, linewidth=2, color='green', label='Median 5sigm clipp='+str(int(np.median( posRMS_bright_outliers )*digits)/digits)+'mArcs')
+
+    plt.xlabel('RMS distance')
+    plt.ylabel('#/bin')
+    plt.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'DistanceRMS.png'
+    plt.savefig(plotPath, format="png")
+
+
+ #   plt.figure()
+ #   plt.title('Test reproduction dists du plotAstrometry')
+ #   plt.hist(posRMS, label='RMS='+str(int(np.std( posRMS)*digits)/digits)+'mAcs\nMean='+str(int(np.mean( posRMS)*digits)/digits)+'mAcs')
+ #   plt.xlabel('RMS dist')
+ #   plt.ylabel('#/bin')
+ #   plt.legend(prop={'size':sizelegend})
+
+  #  plt.show()
+
+
+
+    
+   # plt.figure()
+  #  plt.title('tests plot dist')
+  #  plt.hist(dist,label='dist')
+ #   print('len(dist)', len(dist))
+ #   print('mean(dist)', np.mean(dist))
+ #   print('median(dist)', np.median(dist))
+  #  print('RMS(dist)', np.std(dist))
+  #  plotPath = outputPrefix+'TESTDIST.png'
+  #  plt.savefig(plotPath, format="png")
+  #  plt.show()
+    print('lenccd', len(ccds))
+    print('lenddec',len(goodddec))
+    print('len fluxmag0',len(FluxMag0s))
+    #     FluxMag0Errs
+   # plt.figure() #test
+   # plt.plot( FluxMag0s)
+  #  plt.title('FluxMag0')
+  #  plt.show()
+    
+  #  print('ccd',ccds)
+    print("LONGUEUR GOODDRA", len(gooddra))
+    print("LONGUEUR SOURCEMAG", len(sourcemag))
+    print("LONGUEUR sourceSNR", len(sourcesnr))
+    #faire un script pour sortir la med et rms en fonction du temps
+
+    times=[]
+    dic_time={}
+    for i in range(len(gooddra)):
+         dic_time[goodmjd[i]]={}
+         dic_time[goodmjd[i]]['dra']=[]
+         dic_time[goodmjd[i]]['ddec']=[]
+         dic_time[goodmjd[i]]['sourcedmag']=[]
+         dic_time[goodmjd[i]]['sourcesnr']=[]
+
+         dic_time[goodmjd[i]]['FluxMag0s']=[]
+         dic_time[goodmjd[i]]['FluxMag0Errs']=[]
+
+
+    for i in range(len(gooddra)):
+         dic_time[goodmjd[i]]['dra'].append(gooddra[i])
+         dic_time[goodmjd[i]]['ddec'].append(goodddec[i])
+         dic_time[goodmjd[i]]['sourcedmag'].append(sourcedmag[i])
+         dic_time[goodmjd[i]]['sourcesnr'].append(sourcesnr[i])
+
+         dic_time[goodmjd[i]]['FluxMag0s'].append(FluxMag0s[i])
+         dic_time[goodmjd[i]]['FluxMag0Errs'].append(FluxMag0Errs[i])
+
+
+    for time in dic_time.keys():
+         times.append(time)
+         dic_time[time]['dra_med'] = np.median(dic_time[time]['dra'])
+         dic_time[time]['dra_rms'] = np.std(dic_time[time]['dra'])
+
+         dic_time[time]['ddec_med'] = np.median(dic_time[time]['ddec'])
+         dic_time[time]['ddec_rms'] = np.std(dic_time[time]['ddec'])
+
+         dic_time[time]['sourcedmag_med'] = np.median(dic_time[time]['sourcedmag'])
+         dic_time[time]['sourcedmag_rms'] = np.std(dic_time[time]['sourcedmag'])
+
+         dic_time[time]['sourcesnr_med'] = np.median(dic_time[time]['sourcesnr'])
+         dic_time[time]['sourcesnr_rms'] = np.std(dic_time[time]['sourcesnr'])# barre err totalement inutile
+         dic_time[time]['FluxMag0s_mean'] = np.mean(dic_time[time]['FluxMag0s'])
+         dic_time[time]['FluxMag0s_med'] = np.median(dic_time[time]['FluxMag0s'])
+         dic_time[time]['FluxMag0s_rms'] = np.std(dic_time[time]['FluxMag0s'])
+         dic_time[time]['FluxMag0Errs_mean'] = np.mean(dic_time[time]['FluxMag0Errs'])
+         dic_time[time]['FluxMag0Errs_med'] = np.median(dic_time[time]['FluxMag0Errs'])
+         dic_time[time]['FluxMag0Errs_rms'] = np.std(dic_time[time]['FluxMag0Errs'])
+ 
+
+       #  plt.errorbar(time,  dic_time[time]['dra_med'], xerr=None, yerr=dic_time[time]['dra_rms'],linestyle='',alpha=0.75, marker='o', color='b')
+     #    plt.errorbar(time,  dic_time[time]['ddec_med'], xerr=None, yerr=dic_time[time]['ddec_rms'],linestyle='',alpha=0.75, marker='o', color='r') 
+    #plt.figure(figsize=(10,8))
+ 
+    sizelegend=12
+    f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False, figsize=(16,9))
+    # f.subplots_adjust(hspace=0) # pour enlever l'espace entre les graphiques (vertical)
+    # plt.setp([a.get_xticklabels() for a in f.axes[:-1]], visible=False)
+    for time in dic_time.keys():
+         ax1.scatter(time, dic_time[time]['dra_rms'],alpha=0.85, marker='o', color='b')
+         ax1.scatter(time, dic_time[time]['ddec_rms'],alpha=0.85, marker='o', color='r')
+    ax1.scatter([], [] , color='b',marker='o',label='$\delta(RA) \cos(dec)$')
+    ax1.scatter([], [] , color='r',marker='o',label='$\delta(Dec)$')
+    ax1.legend(prop={'size':sizelegend})
+    ax1.set_xlim(min(goodmjd)-(max(goodmjd)-min(goodmjd))/30., max(goodmjd)+(max(goodmjd)-min(goodmjd))/30.)
+    ax1.set_ylabel('RMS (mArcs)')
+   # ax1.set_xlabel('time (mjd)')
+    ax1.set_title('RMS Dra/Ddec in function of time')
+    for time in dic_time.keys():
+         ax2.scatter(time, dic_time[time]['sourcedmag_rms'],alpha=0.85, marker='o', color='g') #
+    ax2.scatter([], [], marker='o', color='g',label='source $\Delta$Magnitude RMS') #
+    ax2.set_xlim(min(goodmjd)-(max(goodmjd)-min(goodmjd))/30., max(goodmjd)+(max(goodmjd)-min(goodmjd))/30.)
+    ax2.set_ylabel('RMS $\Delta$Mag (mmag)')
+    #plt.xlabel('time (mjd)')
+    ax2.set_title('RMS mag in function of time')
+    ax2.legend(prop={'size':sizelegend})
+
+    for time in dic_time.keys():
+         ax3.scatter(time, dic_time[time]['sourcesnr_med'],alpha=0.85, marker='o', color='k') #
+        # ax3.errorbar(time,  dic_time[time]['sourcesnr_med'], xerr=None, yerr=dic_time[time]['sourcesnr_rms'],linestyle='',alpha=0.75, marker='o', color='b')
+    ax3.scatter([], [], marker='o', color='b',label='source SNR Median') #
+    ax3.set_xlim(min(goodmjd)-(max(goodmjd)-min(goodmjd))/30., max(goodmjd)+(max(goodmjd)-min(goodmjd))/30.)
+    ax3.set_ylabel('SNR')
+    ax3.set_xlabel('time (mjd)')
+    ax3.set_title('Median SNR in function of time')
+    ax3.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'AstrometryVsTime.png'
+    plt.savefig(plotPath, format="png")
+
+    # plt.show()
+
+    #### astrometry and photometry vs CCD ####
+    dic_ccd={}
+    for i in range(len(gooddra)):
+         dic_ccd[ccds[i]]={}
+         dic_ccd[ccds[i]]['dra']=[]
+         dic_ccd[ccds[i]]['ddec']=[]
+         dic_ccd[ccds[i]]['sourcedmag']=[]
+         dic_ccd[ccds[i]]['sourcesnr']=[]
+
+         dic_ccd[ccds[i]]['FluxMag0s']=[]
+         dic_ccd[ccds[i]]['FluxMag0Errs']=[]
+
+    for i in range(len(gooddra)):
+         dic_ccd[ccds[i]]['dra'].append(gooddra[i])
+         dic_ccd[ccds[i]]['ddec'].append(goodddec[i])
+         dic_ccd[ccds[i]]['sourcedmag'].append(sourcedmag[i])
+         dic_ccd[ccds[i]]['sourcesnr'].append(sourcesnr[i])
+
+         dic_ccd[ccds[i]]['FluxMag0s'].append(FluxMag0s[i])
+         dic_ccd[ccds[i]]['FluxMag0Errs'].append(FluxMag0Errs[i])
+
+    for ccd in dic_ccd.keys():
+         ccds.append(ccd)
+         dic_ccd[ccd]['dra_med'] = np.median(dic_ccd[ccd]['dra'])
+         dic_ccd[ccd]['dra_rms'] = np.std(dic_ccd[ccd]['dra'])
+
+         dic_ccd[ccd]['ddec_med'] = np.median(dic_ccd[ccd]['ddec'])
+         dic_ccd[ccd]['ddec_rms'] = np.std(dic_ccd[ccd]['ddec'])
+
+         dic_ccd[ccd]['sourcedmag_med'] = np.median(dic_ccd[ccd]['sourcedmag'])
+         dic_ccd[ccd]['sourcedmag_rms'] = np.std(dic_ccd[ccd]['sourcedmag'])
+
+         dic_ccd[ccd]['sourcesnr_med'] = np.median(dic_ccd[ccd]['sourcesnr'])
+         dic_ccd[ccd]['sourcesnr_rms'] = np.std(dic_ccd[ccd]['sourcesnr'])# barre err totalement inutile
+ 
+         dic_ccd[ccd]['FluxMag0s_mean'] = np.mean(dic_ccd[ccd]['FluxMag0s'])
+         dic_ccd[ccd]['FluxMag0s_med'] = np.median(dic_ccd[ccd]['FluxMag0s'])
+         dic_ccd[ccd]['FluxMag0s_rms'] = np.std(dic_ccd[ccd]['FluxMag0s'])
+         dic_ccd[ccd]['FluxMag0Errs_mean'] = np.mean(dic_ccd[ccd]['FluxMag0Errs'])
+         dic_ccd[ccd]['FluxMag0Errs_med'] = np.median(dic_ccd[ccd]['FluxMag0Errs'])
+         dic_ccd[ccd]['FluxMag0Errs_rms'] = np.std(dic_ccd[ccd]['FluxMag0Errs'])
+ 
+    f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False, figsize=(16,9))
+
+    for ccd in dic_ccd.keys():
+         ax1.scatter(ccd, dic_ccd[ccd]['dra_rms'],alpha=0.85, marker='o', color='b')
+         ax1.scatter(ccd, dic_ccd[ccd]['ddec_rms'],alpha=0.85, marker='o', color='r')
+    ax1.scatter([], [] , color='b',marker='o',label='$\delta(RA) \cos(dec)$')
+    ax1.scatter([], [] , color='r',marker='o',label='$\delta(Dec)$')
+    ax1.legend(prop={'size':sizelegend})
+    ax1.set_xlim(min(ccds)-(max(ccds)-min(ccds))/30., max(ccds)+(max(ccds)-min(ccds))/30.)
+    ax1.set_ylabel('RMS (mArcs)')
+    ax1.set_title('RMS Dra/Ddec in function of CCD')
+
+    for ccd in dic_ccd.keys():
+         ax2.scatter(ccd, dic_ccd[ccd]['sourcedmag_rms'],alpha=0.85, marker='o', color='g') #
+    ax2.scatter([], [], marker='o', color='g',label='source $\Delta$Magnitude RMS') #
+    ax2.set_ylabel('RMS $\Delta$Mag (mmag)')
+    ax2.set_title('RMS mag in function of CCD')
+    ax2.legend(prop={'size':sizelegend})
+
+    for ccd in dic_ccd.keys():
+         ax3.scatter(ccd, dic_ccd[ccd]['sourcesnr_med'],alpha=0.85, marker='o', color='k') #
+        # ax3.errorbar(ccd,  dic_ccd[ccd]['sourcesnr_med'], xerr=None, yerr=dic_ccd[ccd]['sourcesnr_rms'],linestyle='',alpha=0.75, marker='o', color='b')
+    ax3.scatter([], [], marker='o', color='b',label='SNR Median') #
+    ax3.set_ylabel('SNR')
+    ax3.set_xlabel('CCD #')
+    ax3.set_title('Median SNR in function of CCD')
+    ax3.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'AstrometryVsCcd.png'
+    plt.savefig(plotPath, format="png")
+    s=100
+    plt.figure( figsize=(14,5))
+    plt.title('FluxMag0s vs ccd')
+    plt.xlabel('ccd')
+    plt.ylabel('FluxMag0s')
+    for ccd in dic_ccd.keys():
+        plt.scatter(ccd, dic_ccd[ccd]['FluxMag0s_med'],s=s,alpha=0.95, marker='+', color='k') 
+        plt.scatter(ccd, dic_ccd[ccd]['FluxMag0s_mean'],s=s,alpha=0.95, marker='+', color='r') 
+        #plt.scatter(ccd, dic_ccd[ccd]['FluxMag0Errs_med'],alpha=0.85, marker='o', color='k') 
+
+    plt.scatter([], [], marker='+',s=s, color='k',label='Median')
+    plt.scatter([], [], marker='+',s=s, color='r',label='Mean')
+    plt.legend()
+    plotPath = outputPrefix+'ZpVsCCD.png'
+    plt.savefig(plotPath, format="png")
+
+    plt.figure( figsize=(14,5))
+    plt.title('FluxMag0s vs time')
+    plt.xlabel('time')
+    plt.ylabel('FluxMag0s')
+    for time in dic_time.keys():
+         plt.scatter(time, dic_time[time]['FluxMag0s_med'],s=s,alpha=0.95, marker='+', color='k') #
+         plt.scatter(time, dic_time[time]['FluxMag0s_mean'],s=s,alpha=0.95, marker='+', color='r')
+    plt.scatter([], [], marker='+', color='k',s=s,label='Median')
+    plt.scatter([], [], marker='+', color='r',s=s,label='Mean')
+    plt.legend()
+    plotPath = outputPrefix+'ZpVsTime.png'
+    plt.savefig(plotPath, format="png")
+         #plt.scatter(time, dic_time[time]['FluxMag0Errs_med'],alpha=0.85, marker='o', color='k')
+   # plt.show()
+#####
+    """
+    plt.figure(figsize=(10,8))
+    dic_ccd={}
+    for i in range(len(gooddra)):
+         dic_ccd[ccds[i]]={}
+         dic_ccd[ccds[i]]['dra']=[]
+         dic_ccd[ccds[i]]['ddec']=[]
+
+    for i in range(len(gooddra)):
+         dic_ccd[ccds[i]]['dra'].append(gooddra[i])
+         dic_ccd[ccds[i]]['ddec'].append(goodddec[i])
+
+    for ccd in dic_ccd.keys():
+         dic_ccd[ccd]['dra_med'] = np.median(dic_ccd[ccd]['dra'])
+         dic_ccd[ccd]['dra_rms'] = np.std(dic_ccd[ccd]['dra'])
+
+         dic_ccd[ccd]['ddec_med'] = np.median(dic_ccd[ccd]['ddec'])
+         dic_ccd[ccd]['ddec_rms'] = np.std(dic_ccd[ccd]['ddec'])
+          
+         plt.scatter(ccd, dic_ccd[ccd]['dra_rms'],alpha=0.85, marker='o', color='b')
+         plt.scatter(ccd, dic_ccd[ccd]['ddec_rms'],alpha=0.85, marker='o', color='r') 
+
+    plt.scatter([], [] ,s=128, color='b',marker='o',label='$\delta(RA)$ (mArcs)')
+    plt.scatter([], [] ,s=128, color='r',marker='o',label='$\delta(Dec)$ (mArcs)')
+    plt.legend()
+    plt.ylabel('RMS (mArcs)')
+    plt.xlabel('ccd')
+    plt.title('RMS Dra/Ddec in function of ccd')
+    plotPath = outputPrefix+'RaRmsvsCcd.png'
+    plt.savefig(plotPath, format="png")
+    #plt.show()
+    """
+
+
+
 def plotAstrometry(dist, mag, snr, fit_params=None, brightSnr=100,
                    outputPrefix=""):
+
     """Plot angular distance between matched sources from different exposures.
 
     Creates a file containing the plot with a filename beginning with `outputPrefix`.
@@ -89,11 +612,13 @@ def plotAstrometry(dist, mag, snr, fit_params=None, brightSnr=100,
         E.g., outputPrefix='Cfht_output_r_' will result in a file named
            'Cfht_output_r_check_astrometry.png'
     """
-    bright, = np.where(np.asarray(snr) > brightSnr)
 
+    bright, = np.where(np.asarray(snr) > brightSnr)
+    
     numMatched = len(dist)
     dist_median = np.median(dist)
     bright_dist_median = np.median(np.asarray(dist)[bright])
+
 
     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(18, 12))
 
@@ -120,7 +645,7 @@ def plotAstrometry(dist, mag, snr, fit_params=None, brightSnr=100,
     ax[1].set_title("# of matches : %d, %d" % (len(bright), numMatched))
 
     w, = np.where(dist < 200)
-    plotAstromErrModelFit(snr[w], dist[w], fit_params=fit_params, ax=ax[1])
+    plotAstromErrModelFit(snr[w], dist[w], fit_params=fit_params, ax=ax[1])###
 
     ax[1].legend(loc='upper right')
     ax[1].axvline(brightSnr, color='red', linewidth=4, linestyle='dashed')
@@ -279,7 +804,7 @@ def plotPhotometry(mag, snr, mmagerr, mmagrms, brightSnr=100,
         E.g., outputPrefix='Cfht_output_r_' will result in a file named
            'Cfht_output_r_check_photometry.png'
     """
-
+    
     bright, = np.where(np.asarray(snr) > brightSnr)
 
     numMatched = len(mag)

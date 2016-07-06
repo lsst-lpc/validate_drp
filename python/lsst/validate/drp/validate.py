@@ -20,7 +20,6 @@
 
 from __future__ import print_function, absolute_import
 
-import json
 import numpy as np
 
 import lsst.afw.geom as afwGeom
@@ -34,19 +33,33 @@ import lsst.pipe.base as pipeBase
 
 from .base import ValidateErrorNoStars
 from .calcSrd import calcAM1, calcAM2, calcAM3, calcPA1, calcPA2
-from . import calcSrd
 from .check import checkAstrometry, checkPhotometry, positionRms
-from .plot import plotAstrometry, plotPhotometry, plotPA1, plotAMx
+from .plot import plotAstrometry, plotPhotometry, plotPA1, plotAMx, plotHistDist, plotRaDec, plotAstromPhotRMSvsTimeCcd, plotVisitVsTime
 from .print import printPA1, printPA2, printAMx
 from .srdSpec import srdSpec, loadSrdRequirements
 from .util import getCcdKeyName, repoNameToPrefix, calcOrNone, loadParameters
-from .io import (saveKpmToJson, loadKpmFromJson, MultiVisitStarBlobSerializer,
-                 MeasurementSerializer, DatumSerializer, JobSerializer,
-                 persist_job)
+from .io import saveKpmToJson, loadKpmFromJson
+
+
+# sourceFluxField = 'base_PsfFlux'
+#def sourceFlux(sourceFluxField = 'base_PsfFlux'):
+#    return sourceFluxField
+from .calcSrd import sourceFlux
+sourceFluxField = sourceFlux()
+print('sourceFluxField :',sourceFluxField)
+
+
+#sourceFluxFields = ['base_CircularApertureFlux_6_0']
+#commentsFluxFields = ['Circular 6 pixels']
+
+sourceFluxFields = ['base_PsfFlux', 'base_CircularApertureFlux_6_0']
+commentsFluxFields = ['PSF','CircularAperture 6_0']
+
 
 
 def loadAndMatchData(repo, dataIds,
                      matchRadius=afwGeom.Angle(1, afwGeom.arcseconds),
+                     external_cata_path=False,
                      verbose=False):
     """Load data from specific visit.  Match with reference.
 
@@ -68,27 +81,55 @@ def loadAndMatchData(repo, dataIds,
     afw.table.GroupView
         An object of matched catalog.
     """
-
+    print('######################################################################################')
+    print('loadAndMatchData')
+    print('repo',repo)
+    print('dataIds', dataIds)
+    print('MATCH RADIUS : ',   matchRadius)
+    print( 'verbose', verbose)    
+    print('######################################################################################')
     # Following
     # https://github.com/lsst/afw/blob/tickets/DM-3896/examples/repeatability.ipynb
     butler = dafPersist.Butler(repo)
     dataset = 'src'
-
+    """
+    #print(repo)
+    if external_cata_path:
+        print('external catalogue : ', external_cata_path, ' test')
+        butler_external = dafPersist.Butler(external_cata_path)
+        dataset = 'SNLS_cata'
+        objet='D3'
+        dataid = {'object': objet}
+        ext_cata = butler_external.get('src', dataid, immediate=True)
+    """
     # 2016-02-08 MWV:
     # I feel like I could be doing something more efficient with
     # something along the lines of the following:
     #    dataRefs = [dafPersist.ButlerDataRef(butler, vId) for vId in dataIds]
-
+   
     ccdKeyName = getCcdKeyName(dataIds[0])
 
     schema = butler.get(dataset + "_schema", immediate=True).schema
     mapper = SchemaMapper(schema)
     mapper.addMinimalSchema(schema)
+
+
+    for i in range(len(sourceFluxFields)): ### sourceflux
+        mapper.addOutputField(Field[float](sourceFluxFields[i]+'_snr', commentsFluxFields[i]+" flux SNR"))
+        mapper.addOutputField(Field[float](sourceFluxFields[i]+'_mag', commentsFluxFields[i]+" magnitude"))
+        mapper.addOutputField(Field[float](sourceFluxFields[i]+'_magerr', commentsFluxFields[i]+" magnitude uncertainty"))
+
+    """  # ancien cata mag
     mapper.addOutputField(Field[float]('base_PsfFlux_snr', "PSF flux SNR"))
     mapper.addOutputField(Field[float]('base_PsfFlux_mag', "PSF magnitude"))
     mapper.addOutputField(Field[float]('base_PsfFlux_magerr', "PSF magnitude uncertainty"))
-    newSchema = mapper.getOutputSchema()
+    """
+    mapper.addOutputField(Field[float]('MJD-OBS', "Date observation (mjd)"))
 
+    mapper.addOutputField(Field[float]('FLUXMAG0', "zero point flux"))
+    mapper.addOutputField(Field[float]('FLUXMAG0ERR', "zero point flux error" ))
+    newSchema = mapper.getOutputSchema()
+#    print('(newSchema)',newSchema)
     # Create an object that can match multiple catalogs with the same schema
     mmatch = MultiMatch(newSchema,
                         dataIdFormat={'visit': int, ccdKeyName: int},
@@ -97,10 +138,15 @@ def loadAndMatchData(repo, dataIds,
 
     # create the new extented source catalog
     srcVis = SourceCatalog(newSchema)
+    ### test
+   # fluxmag0s = []
+   # fluxmag0_errs = [] 
 
     for vId in dataIds:
+       # print ("vId",vId)
         try:
             calexpMetadata = butler.get("calexp_md", vId, immediate=True)
+            
         except FitsError as fe:
             print(fe)
             print("Could not open calibrated image file for ", vId)
@@ -121,30 +167,79 @@ def loadAndMatchData(repo, dataIds,
             continue
 
         calib = afwImage.Calib(calexpMetadata)
-
+        ### calib schema tests
+     #   print('AAAAAAAAAAAA',dir())
+      #  calmdsch = calexpMetadata.getSchema()
+       # print('------------------------------calexp metadata schema names', calmdsch.getOrderedNames())
+        # print('vId', vId)
         oldSrc = butler.get('src', vId, immediate=True)
         print(len(oldSrc), "sources in ccd %s  visit %s" % (vId[ccdKeyName], vId["visit"]))
+        
+        # ##tests print
+        print('metadata')
+        #print('metadata names :',calexpMetadata.names())
+        fluxmag0 = calexpMetadata.get('FLUXMAG0')
+        fluxmag0_err = calexpMetadata.get('FLUXMAG0ERR')
+
+      #  fluxmag0s.append(fluxmag0)
+      #  fluxmag0_errs.append( fluxmag0_err)
+        # print('fluxmag, err', fluxmag0, fluxmag0_err )
+      
+        # zpFlux = calib.getFluxMag0() # apparemment cela renvoie ( fluxmag0 , fluxmag0_err )
+        # print('zpflux', zpFlux )
+        # zp = 2.5*np.log10(zpFlux[0])
+      
+        # print('#ZERO POINT MAGNITUDE :', zp , 'zpFlux       ',zpFlux)
+        # mag = -2.5*np.log10(Flux) + zp
+        
+        # print('mag', mag)
+        # ## fin test
 
         # create temporary catalog
         tmpCat = SourceCatalog(SourceCatalog(newSchema).table)
         tmpCat.extend(oldSrc, mapper=mapper)
+        
+        tmpCat['MJD-OBS'][:] = calexpMetadata.get('MJD-OBS')
+        tmpCat['FLUXMAG0'][:] = fluxmag0 #= calexpMetadata.get('FLUXMAG0')
+        tmpCat['FLUXMAG0ERR'][:] = fluxmag0_err# = calexpMetadata.get('FLUXMAG0ERR')
+        # ### add mjd
+        # print( 'mjd', mjd)
+
+
+        for sourceFluxField in sourceFluxFields: ### sourceflux
+
+            tmpCat[sourceFluxField+'_snr'][:] = tmpCat[sourceFluxField+'_flux'] / tmpCat[sourceFluxField+'_fluxSigma']
+            
+            with afwImageUtils.CalibNoThrow():
+                (tmpCat[sourceFluxField+'_mag'][:], tmpCat[sourceFluxField+'_magerr'][:]) = \
+                    calib.getMagnitude(tmpCat[sourceFluxField+'_flux'],
+                                       tmpCat[sourceFluxField+'_fluxSigma'])
+
+        """ # ancien add cata
         tmpCat['base_PsfFlux_snr'][:] = tmpCat['base_PsfFlux_flux'] / tmpCat['base_PsfFlux_fluxSigma']
+        
         with afwImageUtils.CalibNoThrow():
             (tmpCat['base_PsfFlux_mag'][:], tmpCat['base_PsfFlux_magerr'][:]) = \
                 calib.getMagnitude(tmpCat['base_PsfFlux_flux'],
                                    tmpCat['base_PsfFlux_fluxSigma'])
 
+        """
         srcVis.extend(tmpCat, False)
         mmatch.add(catalog=tmpCat, dataId=vId)
-
+    import pylab as P
+   # P.plot(fluxmag0s)#fluxmag0s = []
+    # fluxmag0_err0s = []
+   # P.show()
     # Complete the match, returning a catalog that includes
     # all matched sources with object IDs that can be used to group them.
     matchCat = mmatch.finish()
-
+    # ###
+    matchCat_schema =  matchCat.getSchema()
+    print('schema_matchCat.getOrderedNames()',matchCat_schema.getOrderedNames())
+   # print(' matchCat.get(MJD-OBS)', matchCat.get('MJD-OBS'))
     # Create a mapping object that allows the matches to be manipulated
     # as a mapping of object ID to catalog of sources.
     allMatches = GroupView.build(matchCat)
-
     return allMatches
 
 
@@ -183,10 +278,23 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
                 for flag in ("saturated", "cr", "bad", "edge")]
     nMatchesRequired = 2
 
+
+    psfSnrKey = allMatches.schema.find( sourceFluxField+"_snr").key
+    #print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!psfSnrKey!!', psfSnrKey)
+    psfMagKey = allMatches.schema.find( sourceFluxField+"_mag").key
+    psfMagErrKey = allMatches.schema.find( sourceFluxField+"_magerr").key
+    extendedKey = allMatches.schema.find("base_ClassificationExtendedness_value").key
+    """
     psfSnrKey = allMatches.schema.find("base_PsfFlux_snr").key
+    #print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!psfSnrKey!!', psfSnrKey)
     psfMagKey = allMatches.schema.find("base_PsfFlux_mag").key
     psfMagErrKey = allMatches.schema.find("base_PsfFlux_magerr").key
     extendedKey = allMatches.schema.find("base_ClassificationExtendedness_value").key
+    """
+    # ###
+    raKey = allMatches.schema.find('coord_ra').key
+    decKey = allMatches.schema.find('coord_dec').key
+    # print("raKey", raKey)
 
     def goodFilter(cat, goodSnr=3):
         if len(cat) < nMatchesRequired:
@@ -201,7 +309,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
         return psfSnr >= goodSnr
 
     goodMatches = allMatches.where(goodFilter)
-
+    
     # Filter further to a limited range in S/N and extendedness
     # to select bright stars.
     safeMaxExtended = 1.0
@@ -220,7 +328,73 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     goodPsfMagErr = goodMatches.aggregate(np.median, field=psfMagErrKey)
     # positionRms knows how to query a group so we give it the whole thing
     #   by going with the default `field=None`.
+
+
     dist = goodMatches.aggregate(positionRms)
+    # ###
+    #print('@@@@@@@@@@@len(dist)',len(dist))
+    #print('test boucle sur  goodMatches.groups')
+   
+    
+   
+  #  goodMatches_schema =  goodMatches.getSchema()
+  #  print('goodMatches_schema.getOrderedNames()', goodMatches_schema.getOrderedNames())
+
+   ## print('toto len(goodMatchescoord_ra)', len(goodMatches))
+
+    #####print('goodMatches coord_ra])', len(goodMatches.coord_ra))
+
+######################################################@
+    """
+    import pylab as P
+    goodRaMean = goodMatches.aggregate(np.mean, field=raKey)
+    goodDecMean = goodMatches.aggregate(np.mean, field=decKey)
+
+    goodRaRms = goodMatches.aggregate(np.std, field=raKey) 
+    goodDecRms = goodMatches.aggregate(np.std, field=decKey) 
+    print(' len( goodRaRms)', len(goodRaRms))
+    P.figure()
+    P.hist(goodRaRms, bins=50)
+    P.title('goodRaRms')
+    P.figure()
+    P.scatter(dist, goodRaRms)
+    P.title('dist, goodRaRms')
+    P.figure()
+    P.scatter(dist, goodDecRms)
+    P.title('dist, goodDecRms')
+    P.figure()
+    P.scatter(goodRaRms,goodDecRms, marker='*', color='g')
+    P.title('goodRaRms, goodDecRm')
+    P.figure()
+    #P.figure()
+  #  P.show()
+    # test
+    goodra = [] #goodMatches.aggregate(np.ones,'coord_ra')
+    gooddec = [] # goodMatchesaggregate(np.ones,'coord_dec')
+ 
+    compt=0
+    print('totttttooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo')
+    for group in goodMatches.groups:
+        compt+=1
+        group_schema=group.getSchema()
+        print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        goodra +=list(group.get('coord_ra'))
+        gooddec += list(group.get('coord_dec'))
+
+     #   P.scatter(group.get('coord_ra'), group.get('coord_dec'))
+      ##  if compt ==1:
+        #    P.show()
+    print('@@@@@@@@@@@len( goodra)',len( goodra))
+    P.scatter(  goodra,  gooddec)
+    P.scatter(goodRaMean, goodDecMean, marker='*', color='r')
+    P.xlabel('Ra')
+    P.ylabel('Dec')
+    P.show()
+    print('dir(goodMatches)', dir(goodMatches))
+    print('goodMatches.aggregate', goodMatches.aggregate)
+    print('___________')
+    """
+    # print('len(dist)', len(dist))
 
     return pipeBase.Struct(
         mag = goodPsfMag,
@@ -446,7 +620,7 @@ def run(repo, dataIds, outputPrefix=None, level="design", verbose=False, **kwarg
     The filter name is added to this prefix.  If the filter name has spaces,
         there will be annoyance and sadness as those spaces will appear in the filenames.
     """
-
+    print( "######### run")
     allFilters = set([d['filter'] for d in dataIds])
 
     if outputPrefix is None:
@@ -456,8 +630,7 @@ def run(repo, dataIds, outputPrefix=None, level="design", verbose=False, **kwarg
         # Do this here so that each outputPrefix will have a different name for each filter.
         thisOutputPrefix = "%s_%s_" % (outputPrefix.rstrip('_'), filt)
         theseVisitDataIds = [v for v in dataIds if v['filter'] == filt]
-        runOneFilter(repo, theseVisitDataIds, outputPrefix=thisOutputPrefix, verbose=verbose, filterName=filt,
-                     **kwargs)
+        runOneFilter(repo, theseVisitDataIds, outputPrefix=thisOutputPrefix, verbose=verbose, **kwargs)
 
     if verbose:
         print("==============================")
@@ -476,7 +649,7 @@ def run(repo, dataIds, outputPrefix=None, level="design", verbose=False, **kwarg
 def runOneFilter(repo, visitDataIds, brightSnr=100,
                  medianAstromscatterRef=25, medianPhotoscatterRef=25, matchRef=500,
                  makePrint=True, makePlot=True, makeJson=True,
-                 filterName=None, outputPrefix=None,
+                 outputPrefix=None,
                  verbose=False,
                  **kwargs):
     """Main executable for the case where there is just one filter.
@@ -497,7 +670,7 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         The `calexp` cpixel image is needed for the photometric calibration.
     brightSnr : float, optional
         Minimum SNR for a star to be considered bright
-    medianAstromscatterRef : float, optional
+    medianAstromscatterRef : float, optional 
         Expected astrometric RMS [mas] across visits.
     medianPhotoscatterRef : float, optional
         Expected photometric RMS [mmag] across visits.
@@ -511,26 +684,151 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         Create JSON output file for metrics.  Saved to current working directory.
     outputPrefix : str, optional
         Specify the beginning filename for output files.
-    filterName : str, optional
-        Name of the filter (bandpass).
     verbose : bool, optional
         Output additional information on the analysis steps.
 
     """
-
+    print("######### runOneFilter")
     if outputPrefix is None:
         outputPrefix = repoNameToPrefix(repo)
 
     filterName = set([dId['filter'] for dId in visitDataIds]).pop()
-    allMatches = loadAndMatchData(repo, visitDataIds, verbose=verbose)
+    allMatches = loadAndMatchData(repo, visitDataIds, 
+                                  external_cata_path='/sps/lsst/dev/ciulli/Catalogs/cfht_SNLS',
+                                  verbose=verbose)
     struct = analyzeData(allMatches, brightSnr, verbose=verbose)
-
+    #print('struct',struct)
+    
     magavg = struct.mag
+    ##
+    # soirtir les zero point flux ! (voir comment adapter les 3 lignes suivantes)
+   # md = metadata# self.butler.get('calexp_md', butl2.dataid)
+   #     calib = afwImage.Calib(md)
+   #     zpFlux = calib.getFluxMag0()
+    #print('====================len magavg',len( magavg))
     magerr = struct.magerr
     magrms = struct.magrms
     dist = struct.dist
     match = len(struct.goodMatches)
     safeMatches = struct.safeMatches
+ 
+#################################################
+    goodMatches = struct.goodMatches
+    
+  
+    raKey = allMatches.schema.find('coord_ra').key
+    decKey = allMatches.schema.find('coord_dec').key
+
+    import pylab as P
+    goodRaMean = goodMatches.aggregate(np.mean, field=raKey)
+    goodDecMean = goodMatches.aggregate(np.mean, field=decKey)
+    ###### ## #
+   # print('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', ' goodMatches.schema', goodMatches.schema)
+  #  print('schemadir', dir(goodMatches.schema))
+    print('')
+ #   print('schemanames', goodMatches.schema.getOrderedNames())
+    print('')
+  #  print('dir', dir(goodMatches))
+  #  print('')
+  #  print('coord_ra', goodMatches.groups.get('coord_ra')) # get ne marche pas...
+    print('')
+    goodRaRms = goodMatches.aggregate(np.std, field=raKey) 
+    goodDecRms = goodMatches.aggregate(np.std, field=decKey) 
+    #print(' len( goodRaRms)', len(goodRaRms))
+    """
+    P.figure()
+    P.hist(goodRaRms, bins=50)
+    P.title('goodRaRms')
+    P.figure()
+    P.scatter(dist, goodRaRms)
+    P.title('dist, goodRaRms')
+    P.figure()
+    P.scatter(dist, goodDecRms)
+    P.title('dist, goodDecRms')
+    P.figure()
+    P.scatter(goodRaRms,goodDecRms, marker='*', color='g')
+    P.title('goodRaRms, goodDecRm')
+    P.figure()
+    """
+    #P.figure()
+  #  P.show()
+    # test
+    goodra = [] #goodMatches.aggregate(np.ones,'coord_ra')
+    gooddec = [] # goodMatchesaggregate(np.ones,'coord_dec')
+ 
+    compt=0
+    goodmjd=[]
+
+    for group in goodMatches.groups:
+        compt+=1
+     #   group_schema=group.getSchema()
+        #print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        goodra +=list(group.get('coord_ra'))#*np.cos(group.get('coord_dec')))
+        gooddec += list(group.get('coord_dec'))
+        goodmjd += list(group.get('MJD-OBS')) ## FAIT A L'ARRACHE, trouver un autre moyen
+       # print( "compt",compt)
+     #   P.scatter(group.get('coord_ra'), group.get('coord_dec'))
+      ##  if compt ==1:
+        #    P.show()
+    #print( len(goodmjd), 'goodmjd',goodmjd)
+    #print('@@@@@@@@@@@len(goodra',len(goodra))
+ 
+
+    """
+    # print("raKey", raKey)
+    safeRaMean = safeMatches.aggregate(np.mean, field=raKey)
+    safeDecMean = safeMatches.aggregate(np.mean, field=decKey)
+
+    print( 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAa', len(safeRaMean))
+    safeRaRms = safeMatches.aggregate(np.std, field=raKey) 
+    safeDecRms = safeMatches.aggregate(np.std, field=decKey) 
+    print(' len( goodRaRms)', len(safeRaRms))
+    import pylab as P
+    P.figure()
+    P.hist(safeRaRms, bins=50)
+    P.title('safeRaRms')
+    P.figure()
+    P.scatter(dist, safeRaRms)
+    P.title('dist, safeRaRms')
+    P.figure()
+    P.scatter(dist, safeDecRms)
+    P.title('dist, safeDecRms')
+    P.figure()
+    P.scatter(safeRaRms,safeDecRms, marker='*', color='g')
+    P.title('safeRaRms, safeDecRm')
+    P.figure()
+    #P.figure()
+  #  P.show()
+    # test
+    safeRa = [] #goodMatches.aggregate(np.ones,'coord_ra')
+    safeDec = [] # goodMatchesaggregate(np.ones,'coord_dec')
+ 
+    compt=0
+ 
+    for group in safeMatches.groups:
+        compt+=1
+     #   group_schema=group.getSchema()
+        #print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        safeRa +=list(group.get('coord_ra'))
+        safeDec += list(group.get('coord_dec'))
+
+     #   P.scatter(group.get('coord_ra'), group.get('coord_dec'))
+      ##  if compt ==1:
+        #    P.show()
+    print('@@@@@@@@@@@len( safeRa )',len( safeRa))
+    P.scatter(  safeRa,  safeDec)
+    P.scatter(safeRaMean, safeDecMean, marker='*', color='r')
+    P.xlabel('Ra')
+    P.ylabel('Dec')
+    P.show()
+    print('dir(goodMatches)', dir(safeMatches))
+    print('goodMatches.aggregate', safeMatches.aggregate)
+    print('___________')
+    """
+
+
+########################################
+
 
     mmagerr = 1000*magerr
     mmagrms = 1000*magrms
@@ -547,164 +845,31 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         plotAstrometry(dist, magavg, struct.snr,
                        fit_params=astromStruct.params,
                        brightSnr=brightSnr, outputPrefix=outputPrefix)
+        plotVisitVsTime(goodMatches,
+                        outputPrefix=outputPrefix)
+               
+
+        plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, goodMatches, mmagrms,
+                       fit_params=astromStruct.params,
+                       brightSnr=brightSnr, outputPrefix=outputPrefix)
+
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
-                       fit_params=photStruct.params,
+                      fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)
+        ###
+        print('print(type(dist))',type(dist))
+        print('print(type(goodRaMean))',type(goodRaMean))
+        print('print(type(goodra))',type(goodra))
+        plotHistDist(dist, outputPrefix=outputPrefix)
+        plotRaDec(goodRaMean, goodDecMean, goodra,  gooddec, dists=dist, outputPrefix=outputPrefix)
 
-    magKey = allMatches.schema.find("base_PsfFlux_mag").key
 
+ #sourceFluxField+
+    magKey = allMatches.schema.find( sourceFluxField+"_mag").key
+   # magKey = allMatches.schema.find("base_PsfFlux_mag").key
     AM1, AM2, AM3 = [calcOrNone(func, safeMatches, ValidateErrorNoStars, verbose=verbose)
                      for func in (calcAM1, calcAM2, calcAM3)]
     PA1, PA2 = [func(safeMatches, magKey, verbose=verbose) for func in (calcPA1, calcPA2)]
-
-    blob = MultiVisitStarBlobSerializer.init_from_structs(
-        filterName, struct, astromStruct, photStruct)
-    json.dumps(blob.json)
-
-    measurement_serializers = []
-
-    # Serialize AMx, AFx, ADx
-    for AMx in (AM1, AM2, AM3):
-        if AMx is None:
-            continue
-        x = AMx.x
-
-        AMx_serializer = MeasurementSerializer(
-            metric=calcSrd.AMxSerializer(x=x),
-            value=DatumSerializer(
-                value=AMx.AMx,
-                units='milliarcsecond',
-                label='AM{0:d}'.format(x),
-                description='Median RMS of the astrometric distance '
-                            'distribution for stellar pairs with separation '
-                            'of D arcmin (repeatability)'),
-            parameters=calcSrd.AMxParamSerializer(
-                D=DatumSerializer(
-                    value=AMx.D,
-                    units='arcmin',
-                    label='D',
-                    description='Fiducial distance between two objects to '
-                                'consider'),
-                annulus=DatumSerializer(
-                    value=AMx.annulus,
-                    units='arcmin',
-                    label='annulus',
-                    description='Annulus for selecting pairs of stars'),
-                mag_range=DatumSerializer(
-                    value=AMx.magRange,
-                    units='mag',
-                    label='mag range',
-                    description='(bright, faint) magnitude selection range')),
-            blob_id=blob.id)
-        measurement_serializers.append(AMx_serializer)
-
-        # So... only one spec level is computed???
-        AFx_serializer = MeasurementSerializer(
-            metric=calcSrd.AFxSerializer(x=x, level=AMx.level),
-            value=DatumSerializer(
-                value=AMx.AFx,
-                units='',
-                label='AF{0:d}'.format(x),
-                description='Fraction of pairs that deviate more than AD{0:d} '
-                            'from median AM{0:d} ({1})'.format(x, AMx.level)),
-            parameters=calcSrd.AFxParamSerializer(
-                ADx=DatumSerializer(
-                    value=AMx.ADx_spec,
-                    units='milliarcsecond',
-                    label='AD{0:d}'.format(x),
-                    description='Deviation from median RMS AM{0:d} '
-                                'containing AF{0:d} of sample'.format(x)),
-                AMx=DatumSerializer(
-                    value=AMx.AMx,
-                    units='milliarcsecond',
-                    label='AM{0:d}'.format(x),
-                    description='Median RMS of the astrometric distance '
-                                'distribution for stellar pairs with '
-                                'separation of D arcmin (repeatability)'),
-                D=DatumSerializer(
-                    value=AMx.D,
-                    units='arcmin',
-                    label='D',
-                    description='Fiducial distance between two objects to '
-                                'consider'),
-                annulus=DatumSerializer(
-                    value=AMx.annulus,
-                    units='arcmin',
-                    label='annulus',
-                    description='Annulus for selecting pairs of stars'),
-                mag_range=DatumSerializer(
-                    value=AMx.magRange,
-                    units='mag',
-                    label='mag range',
-                    description='(bright, faint) magnitude selection range')),
-            blob_id=blob.id)
-        measurement_serializers.append(AFx_serializer)
-
-    # Serialize PA1
-    PA1_serializer = MeasurementSerializer(
-        metric=calcSrd.PA1Serializer(),
-        value=DatumSerializer(
-            value=PA1.rms,
-            units='millimag',
-            label='PA1',
-            description='Median RMS of visit-to-visit relative photometry. '
-                        'LPM-17.'),
-        parameters=calcSrd.PA1ParamSerializer(
-            num_random_shuffles=50),
-        blob_id=blob.id)
-    json.dumps(PA1_serializer.json)
-    measurement_serializers.append(PA1_serializer)
-    # FIXME need to include the rest of PA1's measurement struct in a blob
-
-    # Serialize PA2 with each level of PF1
-    for level in srdSpec.levels:
-        PA2_serializer = MeasurementSerializer(
-            metric=calcSrd.PA2Serializer(spec_level=level),
-            value=DatumSerializer(
-                value=PA2.PA2_measured[level],
-                units='millimag',
-                label='PA2',
-                description='Mags from mean relative photometric RMS that '
-                            'encompasses PF1 of measurements.'),
-            parameters=calcSrd.PA2ParamSerializer(
-                num_random_shuffles=50,  # FIXME
-                PF1=DatumSerializer(
-                    value=PA2.PF1_spec[level],  # input for PA2
-                    units='',
-                    label='PF1',
-                    description='Fraction of measurements between PA1 and '
-                                'PF2, {0} spec'.format(level))),
-            blob_id=blob.id)
-        json.dumps(PA2_serializer.json)
-        measurement_serializers.append(PA2_serializer)
-
-    # Serialize PF1 with each level of PA2
-    for level in srdSpec.levels:
-        PF1_serializer = MeasurementSerializer(
-            metric=calcSrd.PF1Serializer(spec_level=level),
-            value=DatumSerializer(
-                value=PA2.PF1_measured[level],
-                units='',
-                label='PF1',
-                description='Fraction of measurements between PA1 and PF2, '
-                            '{0} spec'.format(level)),
-            parameters=calcSrd.PF1ParamSerializer(
-                PA2=DatumSerializer(
-                    value=PA2.PA2_spec[level],
-                    units='millimag',
-                    label='PA2',
-                    description='Mags from mean relative photometric RMS that '
-                                'encompasses PF1 of measurements at '
-                                '{0} spec'.format(level))),
-            blob_id=blob.id)
-        json.dumps(PF1_serializer.json)
-        measurement_serializers.append(PF1_serializer)
-
-    # Wrap measurements in a Job
-    job_serializer = JobSerializer(
-        measurements=measurement_serializers,
-        blobs=[blob])
-    persist_job(job_serializer, outputPrefix.rstrip('_') + '.json')
 
     if makePrint:
         print("=============================================")
@@ -718,6 +883,11 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
                 printAMx(metric)
 
     if makePlot:
+        # print('AAAAAAAAA')
+      #  print('**PA1**', PA1)
+      #  print('**AM1**', AM1)
+      ##  print('**AM2**', AM2)
+      #  print('**AM3**', AM3)
         plotPA1(PA1, outputPrefix=outputPrefix)
         for metric in (AM1, AM2, AM3):
             if metric:

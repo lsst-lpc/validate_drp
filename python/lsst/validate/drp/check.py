@@ -27,7 +27,10 @@ import lsst.afw.geom as afwGeom
 import lsst.pipe.base as pipeBase
 
 from .util import averageRaDecFromCat
+from .calcSrd import sourceFlux
+sourceFluxField = sourceFlux()
 
+#print('TEST---------------------++++++++++++++++++++++++++++++++++++++++++++++++++++sourceFluxField :',sourceFluxField)
 
 def isExtended(source, extendedKey, extendedThreshold=1.0):
     """Is the source extended attribute above the threshold.
@@ -59,8 +62,10 @@ def magNormDiff(cat):
     pos_median : float
         median diff of positions in milliarcsec.
     """
-    mag = cat.get('base_PsfFlux_mag')
-    magerr = cat.get('base_PsfFlux_magerr')
+    mag = cat.get(sourceFluxField+'_mag')
+    magerr = cat.get(sourceFluxField+'_magerr')
+  #  mag = cat.get('base_PsfFlux_mag')
+   # magerr = cat.get('base_PsfFlux_magerr')
     mag_avg = np.mean(mag)
     normDiff = (mag - mag_avg) / magerr
 

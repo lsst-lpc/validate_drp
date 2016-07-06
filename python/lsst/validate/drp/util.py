@@ -51,7 +51,6 @@ def averageRaDec(ra, dec):
     coords = [afwCoord.IcrsCoord(ar, ad) for (ar, ad) in zip(angleRa, angleDec)]
 
     meanRa, meanDec = afwCoord.averageCoord(coords)
-
     return meanRa.asRadians(), meanDec.asRadians()
 
 

@@ -32,6 +32,9 @@ from .util import averageRaFromCat, averageDecFromCat
 from .srdSpec import srdSpec, getAstrometricSpec
 from .io import ParametersSerializerBase, MetricSerializer, DatumSerializer
 
+# ###
+import pylab as plt
+# ###
 
 def calcPA1(matches, magKey, numRandomShuffles=50, verbose=False):
     """Calculate the photometric repeatability of measurements across a set of observations.
@@ -492,7 +495,9 @@ def matchVisitComputeDistance(visit_obj1, ra_obj1, dec_obj1,
                                 ra_obj2[j], dec_obj2[j]]).all():
                     distances.append(sphDist(ra_obj1[i], dec_obj1[i],
                                              ra_obj2[j], dec_obj2[j]))
+
     return distances
+
 
 
 def arcminToRadians(arcmin):
@@ -758,12 +763,22 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     annulusRadians = arcminToRadians(annulus)
 
     rmsDistances = list()
+    # ### pour les plots
+    D=(annulus[0]+annulus[1])/2#
+    meanDistances = list() #
+    rms_obj_racosdecs = [] #
+    rms_obj_decs = [] #
+    sizelegend=12
+    digits=1000.
+    # ##
     for obj1, (ra1, dec1, visit1) in enumerate(zip(meanRa, meanDec, visit)):
         dist = sphDist(ra1, dec1, meanRa[obj1+1:], meanDec[obj1+1:])
         objectsInAnnulus, = np.where((annulusRadians[0] <= dist) & (dist < annulusRadians[1]))
+        objectsInAnnulus += 1 + obj1 # Correction des indices pour avoir les bons D
         for obj2 in objectsInAnnulus:
             distances = matchVisitComputeDistance(visit[obj1], ra[obj1], dec[obj1],
                                                   visit[obj2], ra[obj2], dec[obj2])
+ 
             if not distances:
                 if verbose:
                     print("No matching visits found for objs: %d and %d" % (obj1, obj2))
@@ -773,5 +788,34 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
             if len(finiteEntries) > 0:
                 rmsDist = np.std(np.array(distances)[finiteEntries])
                 rmsDistances.append(rmsDist)
+                # ### pour plot de test distribution des D
+                meanDist=np.mean(radiansToMilliarcsec(np.array(distances)[finiteEntries]))/60000.
+                meanDistances.append(meanDist)
+                # ## 
 
+    # ### plots de test distribution des D
+    if (int(D)==5 or int(D)==20):
+
+        plt.figure(figsize=(11,7))
+        plt.title('meanDists (arcmin) pour D='+str(D))
+        plt.hist( meanDistances, label='RMS='+str(int(np.std(meanDistances)*digits)/digits)+'Arcmin\nMean='+str(int(np.mean(meanDistances)*digits)/digits)+'Arcmin\nMedian='+str(int(np.median(meanDistances)*digits)/digits)+'Arcmin')
+        plt.legend(prop={'size':sizelegend})
+        plt.xlabel('meanDists (Arcmin)')
+        plt.ylabel('#/bin')
+        plotPath = 'AstromMeanDists'+str(D)+'.png'
+        plt.savefig(plotPath, format="png")
+        
+
+        plt.figure(figsize=(11,7))
+        plt.title('rmsDist (equiv plot AMx) pour D='+str(D))
+        plt.hist(radiansToMilliarcsec(rmsDistances), label='RMS='+str(int(np.std(radiansToMilliarcsec(rmsDistances))*digits)/digits)+'mArcs\nMean='+str(int(np.mean(radiansToMilliarcsec(rmsDistances))*digits)/digits)+'mArcs\nMedian='+str(int(np.median(radiansToMilliarcsec(rmsDistances))*digits)/digits)+'mArcs')
+        plt.legend(prop={'size':sizelegend})
+        plt.xlabel('meanDists (Arcmin)')
+        plt.xlabel('rmsDists (mArcs)')
+        plt.ylabel('#/bin')
+        plotPath = 'AstromRmsDists'+str(D)+'.png'
+        plt.savefig(plotPath, format="png")
+      #  plt.show()
+    plt.close('all')
+    # ##
     return rmsDistances, annulus, magRange

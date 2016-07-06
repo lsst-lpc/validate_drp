@@ -36,6 +36,10 @@ from .io import ParametersSerializerBase, MetricSerializer, DatumSerializer
 import pylab as plt
 # ###
 
+from .validate import sourceFlux
+sourceFluxField = sourceFlux()
+
+
 def calcPA1(matches, magKey, numRandomShuffles=50, verbose=False):
     """Calculate the photometric repeatability of measurements across a set of observations.
 
@@ -735,11 +739,13 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     # First we make a list of the keys that we want the fields for
     importantKeys = [groupView.schema.find(name).key for
                      name in ['id', 'coord_ra', 'coord_dec',
-                              'object', 'visit', 'base_PsfFlux_mag']]
+                              'object', 'visit', sourceFluxField+'_mag']]                     
+                              # 'object', 'visit', 'base_PsfFlux_mag']]
 
     # Includes magRange through closure
     def magInRange(cat):
-        mag = cat.get('base_PsfFlux_mag')
+       # mag = cat.get('base_PsfFlux_mag')
+        mag = cat.get(sourceFluxField+'_mag')
         w, = np.where(np.isfinite(mag))
         medianMag = np.median(mag[w])
         return magRange[0] <= medianMag and medianMag < magRange[1]

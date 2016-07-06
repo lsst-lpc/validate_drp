@@ -32,6 +32,10 @@ from lsst.afw.fits.fitsLib import FitsError
 import lsst.daf.persistence as dafPersist
 import lsst.pipe.base as pipeBase
 
+def sourceFlux(sourceFluxField = 'base_PsfFlux'): # 'base_CircularApertureFlux_6_0'):#'base_PsfFlux'):#
+    return sourceFluxField
+
+
 from .base import ValidateErrorNoStars
 from .calcSrd import calcAM1, calcAM2, calcAM3, calcPA1, calcPA2
 from . import calcSrd
@@ -44,6 +48,11 @@ from .io import (saveKpmToJson, loadKpmFromJson, MultiVisitStarBlobSerializer,
                  MeasurementSerializer, DatumSerializer, JobSerializer,
                  persist_job)
 
+sourceFluxField = sourceFlux()
+
+
+sourceFluxFields = ['base_PsfFlux', 'base_CircularApertureFlux_6_0']
+commentsFluxFields = ['PSF','CircularAperture 6_0']
 
 def loadAndMatchData(repo, dataIds,
                      matchRadius=afwGeom.Angle(1, afwGeom.arcseconds),
@@ -84,10 +93,13 @@ def loadAndMatchData(repo, dataIds,
     schema = butler.get(dataset + "_schema", immediate=True).schema
     mapper = SchemaMapper(schema)
     mapper.addMinimalSchema(schema)
-    mapper.addOutputField(Field[float]('base_PsfFlux_snr', "PSF flux SNR"))
-    mapper.addOutputField(Field[float]('base_PsfFlux_mag', "PSF magnitude"))
-    mapper.addOutputField(Field[float]('base_PsfFlux_magerr', "PSF magnitude uncertainty"))
-
+    # mapper.addOutputField(Field[float]('base_PsfFlux_snr', "PSF flux SNR"))
+    # mapper.addOutputField(Field[float]('base_PsfFlux_mag', "PSF magnitude"))
+    # mapper.addOutputField(Field[float]('base_PsfFlux_magerr', "PSF magnitude uncertainty"))
+    for i in range(len(sourceFluxFields)): ### sourceflux
+        mapper.addOutputField(Field[float](sourceFluxFields[i]+'_snr', commentsFluxFields[i]+" flux SNR"))
+        mapper.addOutputField(Field[float](sourceFluxFields[i]+'_mag', commentsFluxFields[i]+" magnitude"))
+        mapper.addOutputField(Field[float](sourceFluxFields[i]+'_magerr', commentsFluxFields[i]+" magnitude uncertainty"))
     mapper.addOutputField(Field[float]('MJD-OBS', "Date observation (mjd)"))
     mapper.addOutputField(Field[float]('FLUXMAG0', "zero point flux"))
     mapper.addOutputField(Field[float]('FLUXMAG0ERR', "zero point flux error" ))
@@ -141,22 +153,26 @@ def loadAndMatchData(repo, dataIds,
         tmpCat['FLUXMAG0'][:] = fluxmag0 #= calexpMetadata.get('FLUXMAG0')
         tmpCat['FLUXMAG0ERR'][:] = fluxmag0_err# = calexpMetadata.get('FLUXMAG0ERR')
 
-        tmpCat['base_PsfFlux_snr'][:] = tmpCat['base_PsfFlux_flux'] / tmpCat['base_PsfFlux_fluxSigma']
-
-
-
-
-        with afwImageUtils.CalibNoThrow():
-            (tmpCat['base_PsfFlux_mag'][:], tmpCat['base_PsfFlux_magerr'][:]) = \
-                calib.getMagnitude(tmpCat['base_PsfFlux_flux'],
-                                   tmpCat['base_PsfFlux_fluxSigma'])
-
+        # tmpCat['base_PsfFlux_snr'][:] = tmpCat['base_PsfFlux_flux'] / tmpCat['base_PsfFlux_fluxSigma']
+        # with afwImageUtils.CalibNoThrow():
+        #     (tmpCat['base_PsfFlux_mag'][:], tmpCat['base_PsfFlux_magerr'][:]) = \
+        #         calib.getMagnitude(tmpCat['base_PsfFlux_flux'],
+        #                            tmpCat['base_PsfFlux_fluxSigma'])
+        for sourceFluxField in sourceFluxFields: ### sourceflux
+            tmpCat[sourceFluxField+'_snr'][:] = tmpCat[sourceFluxField+'_flux'] / tmpCat[sourceFluxField+'_fluxSigma']
+            with afwImageUtils.CalibNoThrow():
+                (tmpCat[sourceFluxField+'_mag'][:], tmpCat[sourceFluxField+'_magerr'][:]) = \
+                    calib.getMagnitude(tmpCat[sourceFluxField+'_flux'],
+                                       tmpCat[sourceFluxField+'_fluxSigma'])
         srcVis.extend(tmpCat, False)
         mmatch.add(catalog=tmpCat, dataId=vId)
 
     # Complete the match, returning a catalog that includes
     # all matched sources with object IDs that can be used to group them.
     matchCat = mmatch.finish()
+
+    # matchCat_schema =  matchCat.getSchema()
+    # print('schema_matchCat.getOrderedNames()',matchCat_schema.getOrderedNames())
 
     # Create a mapping object that allows the matches to be manipulated
     # as a mapping of object ID to catalog of sources.
@@ -200,9 +216,13 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
                 for flag in ("saturated", "cr", "bad", "edge")]
     nMatchesRequired = 2
 
-    psfSnrKey = allMatches.schema.find("base_PsfFlux_snr").key
-    psfMagKey = allMatches.schema.find("base_PsfFlux_mag").key
-    psfMagErrKey = allMatches.schema.find("base_PsfFlux_magerr").key
+    psfSnrKey = allMatches.schema.find( sourceFluxField+"_snr").key
+    psfMagKey = allMatches.schema.find( sourceFluxField+"_mag").key
+    psfMagErrKey = allMatches.schema.find( sourceFluxField+"_magerr").key
+
+    # psfSnrKey = allMatches.schema.find("base_PsfFlux_snr").key
+    # psfMagKey = allMatches.schema.find("base_PsfFlux_mag").key
+    # psfMagErrKey = allMatches.schema.find("base_PsfFlux_magerr").key
     extendedKey = allMatches.schema.find("base_ClassificationExtendedness_value").key
 
     def goodFilter(cat, goodSnr=3):
@@ -567,9 +587,9 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
 
         plotVisitVsTime(struct.goodMatches,
                         outputPrefix=outputPrefix)
-
+ 
         plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, struct.goodMatches, mmagrms,
-                       fit_params=astromStruct.params,
+                       fit_params=astromStruct.params, srcFluxField=sourceFluxField,
                        brightSnr=brightSnr, outputPrefix=outputPrefix)
 
 
@@ -577,7 +597,8 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
                        fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)
 
-    magKey = allMatches.schema.find("base_PsfFlux_mag").key
+    # magKey = allMatches.schema.find("base_PsfFlux_mag").key
+    magKey = allMatches.schema.find(sourceFluxField+"_mag").key
 
     AM1, AM2, AM3 = [calcOrNone(func, safeMatches, ValidateErrorNoStars, verbose=verbose)
                      for func in (calcAM1, calcAM2, calcAM3)]

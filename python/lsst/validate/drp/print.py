@@ -65,3 +65,4 @@ def printAMx(AMx):
           (AMx.name, AMx.AMx, AMx.amxUnits, AMx.AMx_spec, AMx.amxUnits))
     print("  %.2f%% of sample deviates by >%.0f %s (target is < %.0f%%)" %
           (percentOver, AMx.ADx_spec+AMx.AMx_spec, AMx.adxUnits, AMx.AFx_spec))
+

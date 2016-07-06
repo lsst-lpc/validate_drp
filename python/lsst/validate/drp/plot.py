@@ -25,6 +25,7 @@ import numpy as np
 import scipy.stats
 from .check import fitExp, fitAstromErrModel, fitPhotErrModel, expModel, astromErrModel, photErrModel
 
+
 # Plotting defaults
 plt.rcParams['axes.linewidth'] = 2
 plt.rcParams['mathtext.default'] = 'regular'
@@ -66,6 +67,9 @@ def plotOutlinedLines(ax_plot, x1, x2, x1_color=color['all'], x2_color=color['br
     ax_plot(x2, color=x2_color, linewidth=3)
 
 
+
+
+
 def plotVisitVsTime(goodMatches,
                     outputPrefix=""):
     mjd=[]
@@ -85,14 +89,13 @@ def plotVisitVsTime(goodMatches,
 
 
 def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
-                                fit_params=None, brightSnr=100,
+                                fit_params=None, brightSnr=100, srcFluxField='base_PsfFlux',
                                 outputPrefix=""):
+    sourceFluxField=srcFluxField
 
-    sourceFluxField='base_PsfFlux' #pas encore implemente (pour pouvoir mettre d'autres flux)
-    #to do (add cut snr (voir plotastrometry))
     sizelegend=12 # taille des legendes
     digits=1000. # precision des valeurs dans les legendes des histos
-    #### astrometry and photometry vs time ####
+  
     gooddra = [] #goodMatches.aggregate(np.ones,'coord_ra')
     goodddec = [] # goodMatchesaggregate(np.ones,'coord_dec')
 

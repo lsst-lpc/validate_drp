@@ -761,6 +761,7 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
     for obj1, (ra1, dec1, visit1) in enumerate(zip(meanRa, meanDec, visit)):
         dist = sphDist(ra1, dec1, meanRa[obj1+1:], meanDec[obj1+1:])
         objectsInAnnulus, = np.where((annulusRadians[0] <= dist) & (dist < annulusRadians[1]))
+        print 'there should be the modif'
         for obj2 in objectsInAnnulus:
             distances = matchVisitComputeDistance(visit[obj1], ra[obj1], dec[obj1],
                                                   visit[obj2], ra[obj2], dec[obj2])

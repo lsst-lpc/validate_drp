@@ -36,7 +36,7 @@ from .base import ValidateErrorNoStars
 from .calcSrd import calcAM1, calcAM2, calcAM3, calcPA1, calcPA2
 from . import calcSrd
 from .check import checkAstrometry, checkPhotometry, positionRms
-from .plot import plotAstrometry, plotPhotometry, plotPA1, plotAMx,  plotVisitVsTime
+from .plot import plotAstrometry, plotPhotometry, plotPA1, plotAMx,  plotVisitVsTime, plotAstromPhotRMSvsTimeCcd
 from .print import printPA1, printPA2, printAMx
 from .srdSpec import srdSpec, loadSrdRequirements
 from .util import getCcdKeyName, repoNameToPrefix, calcOrNone, loadParameters
@@ -564,8 +564,15 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         plotAstrometry(dist, magavg, struct.snr,
                        fit_params=astromStruct.params,
                        brightSnr=brightSnr, outputPrefix=outputPrefix)
+
         plotVisitVsTime(struct.goodMatches,
                         outputPrefix=outputPrefix)
+
+        plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, struct.goodMatches, mmagrms,
+                       fit_params=astromStruct.params,
+                       brightSnr=brightSnr, outputPrefix=outputPrefix)
+
+
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
                        fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)

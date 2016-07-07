@@ -103,7 +103,7 @@ def loadAndMatchData(repo, dataIds,
     mapper.addOutputField(Field[float]('MJD-OBS', "Date observation (mjd)"))
     mapper.addOutputField(Field[float]('FLUXMAG0', "zero point flux"))
     mapper.addOutputField(Field[float]('FLUXMAG0ERR', "zero point flux error" ))
-
+    mapper.addOutputField(Field[float]('psf-fwhm', "Full width at half maximum (FWHM) of the psf (arcseconds)"))
     newSchema = mapper.getOutputSchema()
 
     # Create an object that can match multiple catalogs with the same schema
@@ -118,6 +118,8 @@ def loadAndMatchData(repo, dataIds,
     for vId in dataIds:
         try:
             calexpMetadata = butler.get("calexp_md", vId, immediate=True)
+            print('dataIds vId',vId)
+            calexp  =  butler.get('calexp',  vId, immediate=True)
         except FitsError as fe:
             print(fe)
             print("Could not open calibrated image file for ", vId)
@@ -148,10 +150,23 @@ def loadAndMatchData(repo, dataIds,
 
         fluxmag0 = calexpMetadata.get('FLUXMAG0')
         fluxmag0_err = calexpMetadata.get('FLUXMAG0ERR')
-  
+      
         tmpCat['MJD-OBS'][:] = calexpMetadata.get('MJD-OBS')
         tmpCat['FLUXMAG0'][:] = fluxmag0 #= calexpMetadata.get('FLUXMAG0')
-        tmpCat['FLUXMAG0ERR'][:] = fluxmag0_err# = calexpMetadata.get('FLUXMAG0ERR')
+        tmpCat['FLUXMAG0ERR'][:] = fluxmag0_err #= calexpMetadata.get('FLUXMAG0ERR')
+
+        sigmaToFwhm  =  2.0*np.sqrt(2.0*np.log(2.0))
+ 
+        wcs = calexp.getWcs()
+        psf = calexp.getPsf()
+        print('psf = ', psf)
+        if psf != None:
+
+            print('psf is not none !!!!')
+            shape = psf.computeShape()
+            psf_fwhm = shape.getDeterminantRadius()* wcs.pixelScale().asArcseconds()  *  sigmaToFwhm
+            print('psf-fwhm :',   psf_fwhm)
+            tmpCat['psf-fwhm'][:] = psf_fwhm
 
         # tmpCat['base_PsfFlux_snr'][:] = tmpCat['base_PsfFlux_flux'] / tmpCat['base_PsfFlux_fluxSigma']
         # with afwImageUtils.CalibNoThrow():

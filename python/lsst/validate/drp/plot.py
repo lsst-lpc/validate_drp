@@ -68,8 +68,6 @@ def plotOutlinedLines(ax_plot, x1, x2, x1_color=color['all'], x2_color=color['br
 
 
 
-
-
 def plotVisitVsTime(goodMatches,
                     outputPrefix=""):
     mjd=[]
@@ -86,6 +84,7 @@ def plotVisitVsTime(goodMatches,
     plotPath = outputPrefix + 'VisitVsTime.png'
     plt.savefig(plotPath, format="png")
      #plt.show()
+
 
 
 def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
@@ -123,6 +122,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     posRMS = []
 
     meansnr = []
+
+   # grpMeanShapex  = []### test shape
+
     for group in goodMatches.groups:
      #   group_schema=group.getSchema()
     #    print('group_schema=group.getSchema()',group_schema.getOrderedNames())
@@ -131,6 +133,13 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         RA = group.get('coord_ra')
         Dec = group.get('coord_dec')
         
+     #   print('test base_SdssShape_x', group.get('base_SdssShape_x'))
+        Shapex = group.get('base_SdssShape_x')
+        MeanShapex = np.mean( Shapex)
+        grpMeanShapex.append(MeanShapex)
+ #  print('test base_SdssShape_y', group.get('base_SdssShape_y'))
+
+
         MeanRA = np.mean(RA)
         MeanDec = np.mean(Dec)
 
@@ -175,16 +184,49 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
     grpMeanRAcosdec=np.array(grpMeanRAcosdec)
 
+
     plt.close('all')
     plt.figure()
     plt.title('racosdec')
     plt.scatter(grpMeanRAcosdec, groupRMSracosdec, color=color['all'], label='all')
-    plt.scatter(grpMeanRAcosdec[bright],   groupRMSdec_bright, color=color['bright'], label='bright')
-    plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='g', label='bright outliers')
+    plt.scatter(grpMeanRAcosdec[bright], groupRMSdec_bright, color=color['bright'], label='bright')
+    plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='r', label='bright outliers')
     plt.legend()
     plt.xlabel('mean ra cosdec')
     plt.ylabel('rms ra cos dec')
 
+    plt.figure()
+    plt.title('racosdec')
+    plt.scatter(grpMeanRAcosdec[bright], groupRMSdec_bright, color=color['bright'], label='bright')
+    plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='r', label='bright outliers')
+    plt.legend()
+    plt.xlabel('mean ra cosdec')
+    plt.ylabel('rms ra cos dec')
+
+
+# grpMeanShapex
+
+   # plt.figure()
+   # plt.title('test corr shape_x /RA')
+   # plt.scatter(groupRMSracosdec,grpMeanShapex, color=color['all'], label='all')
+    # #marche pas plt.scatter(groupRMSracosdec[bright], grpMeanShapex[bright], color=color['bright'], label='bright')#
+    #plt.legend()
+   # plt.xlabel('mean ra cosdec')
+   # plt.ylabel('Shape_x')
+    """
+    plt.figure()
+    plt.title('racosdec')
+    plt.scatter(grpMeanDec, groupRMSracosdec, color=color['all'], label='all')
+    plt.scatter(grpMeanDec[bright], groupRMSdec_bright, color=color['bright'], label='bright')
+    plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='r', label='bright outliers')
+    plt.legend()
+
+    plt.legend()
+    plt.xlabel('dec')
+    plt.ylabel('rms racos')
+    """
+  #  plt.show()
+    
     #plot(x,y,"k.")
   #  y_av = movingaverage(groupRMSracosdec, 100)
    # plt.plot(grpMeanRAcosdec, y_av,"r")

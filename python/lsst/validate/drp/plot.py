@@ -105,7 +105,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     compt = 0
     goodmjd = []
     radToDeg = 180./np.pi
-    degToArcs = 3600
+    degToArcs = 3600.
     radToArcs = radToDeg* degToArcs
     ccds = []
     sourcemag = []
@@ -116,25 +116,32 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     FluxMag0s = []
     FluxMag0Errs = []
 
-    groupMEANracosdec = []
-    groupMEANdec = []
+    grpMeanRAcosdec = []
+    grpMeanDec = []
     groupRMSracosdec = []
     groupRMSdec = []
     posRMS = []
 
     meansnr = []
     for group in goodMatches.groups:
-        #  group_schema=group.getSchema()
-        # print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        group_schema=group.getSchema()
+        print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        print('')
+        
+        RA = group.get('coord_ra')
+        Dec = group.get('coord_dec')
+        
+        MeanRA = np.mean(RA)
+        MeanDec = np.mean(Dec)
 
-        dra = ((group.get('coord_ra') - np.mean(group.get('coord_ra'))) * np.mean(np.cos(group.get('coord_dec'))))*radToArcs*1000
-        ddec = (group.get('coord_dec') - np.mean(group.get('coord_dec')))*radToArcs*1000
+        dra = ((RA -  MeanRA) * np.cos(MeanDec)) *radToArcs*1000
+        ddec = (Dec - MeanDec) *radToArcs*1000
         
         gooddra += list(dra )
         goodddec += list(ddec)
         
-        groupMEANracosdec.append(np.mean(group.get('coord_ra'))* np.mean(np.cos(group.get('coord_dec'))))
-        groupMEANdec.append(np.mean(group.get('coord_dec')))
+        grpMeanRAcosdec.append(MeanRA  * np.cos(MeanDec))
+        grpMeanDec.append(MeanDec)
         
         groupRMSracosdec.append( np.std(dra))
         groupRMSdec.append( np.std(ddec))
@@ -152,59 +159,35 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
         ccds += list(group.get('ccd'))
     
-  # to do : ajouter une possibilite de remove des outliers
-  #plot dist rs
- #   print('??(groupMEANracosdec, groupRMSracosdec)',groupMEANracosdec, groupRMSracosdec)
-  #  print('len SNR dans plotastrometry', len(snr))
-
     bright, = np.where(np.asarray(meansnr) > brightSnr)
    # bright2, = np.where(np.asarray(snr) > brightSnr) # ???  # vient de goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey) dans validate.py# 
-
-#    print( 'goodPsfSnr (calcule dans le truc officiel de validate.py : ', snr) # etrange que ce n'est pas toujours pareil que meansnr (bien que ca reste semblable), alors que la fonction mean est appliquee avec aggregate ici....
-  #  print('')
-  #  print(' meansnr',   meansnr)
-#    diffsnr= np.array(meansnr) - np.array(snr)
-#    rapsnr=np.array(meansnr) / np.array(snr)
-   # print('diff snr officiel calul ici :', diffsnr)
-  #  print('moyenne, mediane, min, max diffsnr',np.mean(diffsnr),np.median(diffsnr),np.min(diffsnr),np.max(diffsnr))
- #   print('moyenne, mediane, min, max rapsnr',np.mean(rapsnr),np.median(rapsnr),np.min(rapsnr),np.max(rapsnr))
-
-   # numMatched = len(dist)
-  #  dist_median = np.median(dist)
-  #  bright_dist_median = np.median(np.asarray(dist)[bright])
-
-  #  print('bright',bright)
- #   print('maxbright',max(bright))
-   # print('bright2',bright2)
- #   print('maxbright2-bright1',bright2-bright)
-   # print('len(groupRMSracosdec)',len(groupRMSracosdec))
-
 
     groupRMSracosdec_bright = np.array(groupRMSracosdec)[bright]
     groupRMSdec_bright = np.array(groupRMSdec)[bright]
     posRMS_bright = np.array(posRMS)[bright]
 
-    bright_outliers = np.where((np.asarray(posRMS_bright-np.median(posRMS_bright)) < 5*np.std(posRMS_bright)))# and  (np.asarray(groupRMSracosdec_bright-np.median(groupRMSracosdec_bright)) < 5*np.std(groupRMSracosdec_bright)) and (np.asarray(groupRMSdec_bright-np.median(groupRMSdec_bright)) < 5*np.std(groupRMSdec_bright)))
+    nb_sigma=5
+    bright_outliers, = np.where((np.asarray(posRMS_bright-np.median(posRMS_bright)) < nb_sigma*np.std(posRMS_bright))) and  np.where((np.asarray(groupRMSracosdec_bright-np.median(groupRMSracosdec_bright)) < nb_sigma*np.std(groupRMSracosdec_bright))) and np.where((np.asarray(groupRMSdec_bright-np.median(groupRMSdec_bright)) < nb_sigma*np.std(groupRMSdec_bright)))
 
     posRMS_bright_outliers = posRMS_bright[bright_outliers]
     groupRMSracosdec_bright_outliers = groupRMSracosdec_bright[bright_outliers]
     groupRMSdec_bright_outliers = groupRMSdec_bright[bright_outliers]
 
-    groupMEANracosdec=np.array(groupMEANracosdec)
+    grpMeanRAcosdec=np.array(grpMeanRAcosdec)
 
     plt.close('all')
     plt.figure()
     plt.title('racosdec')
-    plt.scatter(groupMEANracosdec, groupRMSracosdec, color=color['all'], label='all')
-    plt.scatter(groupMEANracosdec[bright],   groupRMSdec_bright, color=color['bright'], label='bright')
-    plt.scatter((groupMEANracosdec[bright])[bright_outliers],   (groupRMSdec_bright)[bright_outliers], color='g', label='bright outliers')
+    plt.scatter(grpMeanRAcosdec, groupRMSracosdec, color=color['all'], label='all')
+    plt.scatter(grpMeanRAcosdec[bright],   groupRMSdec_bright, color=color['bright'], label='bright')
+    plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='g', label='bright outliers')
     plt.legend()
     plt.xlabel('mean ra cosdec')
     plt.ylabel('rms ra cos dec')
 
     #plot(x,y,"k.")
   #  y_av = movingaverage(groupRMSracosdec, 100)
-   # plt.plot(groupMEANracosdec, y_av,"r")
+   # plt.plot(grpMeanRAcosdec, y_av,"r")
   #  plt.xlim(0,1000)
    # plt.grid(True)
    # plt.show()
@@ -240,7 +223,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.savefig(plotPath, format="png")
 
     plt.figure()
-    plt.title('Test reproduction dists du plotAstrometry')
+    plt.title('RMS distances (equiv plotAstrometry)')
     plt.hist(posRMS, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
     plt.hist(posRMS_bright,histtype ='stepfilled',alpha=0.8,color='r')
     plt.hist(posRMS_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')

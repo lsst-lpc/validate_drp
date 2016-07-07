@@ -158,7 +158,7 @@ def loadAndMatchData(repo, dataIds,
         #     (tmpCat['base_PsfFlux_mag'][:], tmpCat['base_PsfFlux_magerr'][:]) = \
         #         calib.getMagnitude(tmpCat['base_PsfFlux_flux'],
         #                            tmpCat['base_PsfFlux_fluxSigma'])
-        for sourceFluxField in sourceFluxFields: ### sourceflux
+        for sourceFluxField in sourceFluxFields:
             tmpCat[sourceFluxField+'_snr'][:] = tmpCat[sourceFluxField+'_flux'] / tmpCat[sourceFluxField+'_fluxSigma']
             with afwImageUtils.CalibNoThrow():
                 (tmpCat[sourceFluxField+'_mag'][:], tmpCat[sourceFluxField+'_magerr'][:]) = \
@@ -219,6 +219,8 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     psfSnrKey = allMatches.schema.find( sourceFluxField+"_snr").key
     psfMagKey = allMatches.schema.find( sourceFluxField+"_mag").key
     psfMagErrKey = allMatches.schema.find( sourceFluxField+"_magerr").key
+ #   schemaAllMatches=allMatches.schema#
+ #   print('=============================== schemaAllMatches',schemaAllMatches.getOrderedNames())
 
     # psfSnrKey = allMatches.schema.find("base_PsfFlux_snr").key
     # psfMagKey = allMatches.schema.find("base_PsfFlux_mag").key

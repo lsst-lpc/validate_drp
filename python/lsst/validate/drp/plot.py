@@ -124,9 +124,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
     meansnr = []
     for group in goodMatches.groups:
-        group_schema=group.getSchema()
-        print('group_schema=group.getSchema()',group_schema.getOrderedNames())
-        print('')
+     #   group_schema=group.getSchema()
+    #    print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+    #    print('')
         
         RA = group.get('coord_ra')
         Dec = group.get('coord_dec')

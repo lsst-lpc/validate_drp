@@ -237,7 +237,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plotPath = outputPrefix+'PsfFwhmvsdeltaDec.png'
     plt.savefig(plotPath, format="png")
 
-    plt.show()
+    #plt.show()
 
     plt.close('all')
     plt.figure()

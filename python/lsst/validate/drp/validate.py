@@ -48,11 +48,18 @@ from .io import (saveKpmToJson, loadKpmFromJson, MultiVisitStarBlobSerializer,
                  MeasurementSerializer, DatumSerializer, JobSerializer,
                  persist_job)
 
+import lsst.pex.config as pexConfig
+
 sourceFluxField = sourceFlux()
 
 
 sourceFluxFields = ['base_PsfFlux', 'base_CircularApertureFlux_6_0']
 commentsFluxFields = ['PSF','CircularAperture 6_0']
+
+
+
+
+
 
 def loadAndMatchData(repo, dataIds,
                      matchRadius=afwGeom.Angle(1, afwGeom.arcseconds),
@@ -223,9 +230,26 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     """
 
     # Filter down to matches with at least 2 sources and good flags
-    flagKeys = [allMatches.schema.find("base_PixelFlags_flag_%s" % flag).key
-                for flag in ("saturated", "cr", "bad", "edge")]
-    nMatchesRequired = 2
+ #   flagKeys = [allMatches.schema.find("base_PixelFlags_flag_%s" % flag).key 
+ #               for flag in ("saturated", "cr", "bad", "edge")] #anciens flags
+ #   nMatchesRequired = 2
+
+
+   # badFlags = pexConfig.ListField( # flags jointcal (pris par Pierre astier)
+   #     doc = "List of flags which cause a source to be rejected as bad",
+   #     dtype = str,
+   #     default = [ "base_PixelFlags_flag_saturated", 
+   #                 "base_PixelFlags_flag_cr",
+   #                 "base_PixelFlags_flag_interpolated",
+   #                 "base_SdssCentroid_flag",
+   #                 "base_SdssShape_flag"],
+   #     )
+ 
+    # Filter down to matches with at least 2 sources and good flags
+    flagKeys = [allMatches.schema.find("base_%s" % flag).key
+                for flag in ("PixelFlags_flag_saturated", "PixelFlags_flag_cr", "PixelFlags_flag_bad", "PixelFlags_flag_edge", "SdssCentroid_flag", "SdssShape_flag")] #en considerant les flags deja pris plus ceux d'astier
+    nMatchesRequired = 2 # pourquoi 2 ?
+
 
     psfSnrKey = allMatches.schema.find( sourceFluxField+"_snr").key
     psfMagKey = allMatches.schema.find( sourceFluxField+"_mag").key

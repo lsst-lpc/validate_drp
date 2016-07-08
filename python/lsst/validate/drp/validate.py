@@ -118,7 +118,7 @@ def loadAndMatchData(repo, dataIds,
     for vId in dataIds:
         try:
             calexpMetadata = butler.get("calexp_md", vId, immediate=True)
-            print('dataIds vId',vId)
+            # print('dataIds vId',vId)
             calexp  =  butler.get('calexp',  vId, immediate=True)
         except FitsError as fe:
             print(fe)
@@ -161,7 +161,7 @@ def loadAndMatchData(repo, dataIds,
         psf = calexp.getPsf() # make a setup meas_extensions_psfex to import this function
         shape = psf.computeShape()
         psf_fwhm = shape.getDeterminantRadius()* wcs.pixelScale().asArcseconds()  *  sigmaToFwhm
-        print('PSF-FWHM :',   psf_fwhm)
+        # print('PSF-FWHM :',   psf_fwhm)
         tmpCat['PSF-FWHM'][:] = psf_fwhm
 
         # tmpCat['base_PsfFlux_snr'][:] = tmpCat['base_PsfFlux_flux'] / tmpCat['base_PsfFlux_fluxSigma']

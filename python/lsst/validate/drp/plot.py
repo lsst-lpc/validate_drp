@@ -95,8 +95,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     sizelegend=12 # taille des legendes
     digits=1000. # precision des valeurs dans les legendes des histos
   
-    gooddra = [] #goodMatches.aggregate(np.ones,'coord_ra')
-    goodddec = [] # goodMatchesaggregate(np.ones,'coord_dec')
+    deltaRAcosdecs = [] #goodMatches.aggregate(np.ones,'coord_ra')
+    deltaDecs = [] # goodMatchesaggregate(np.ones,'coord_dec')
 
     print("LONGUEUR MAGRMS", len(mmagrms))
     print("LONGUEUR dist", len(dist))
@@ -152,8 +152,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         dra = ((RA -  MeanRA) * np.cos(MeanDec)) *radToArcs*1000
         ddec = (Dec - MeanDec) *radToArcs*1000
         
-        gooddra += list(dra )
-        goodddec += list(ddec)
+        deltaRAcosdecs += list(dra)
+        deltaDecs += list(ddec)
         
         grpMeanRAcosdec.append(MeanRA  * np.cos(MeanDec))
         grpMeanDec.append(MeanDec)
@@ -165,10 +165,28 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         goodmjd += list(group.get('MJD-OBS'))
         sourcemag += list((group.get(sourceFluxField+"_mag"))*1000)
         sourcedmag += list((group.get(sourceFluxField+"_mag") - np.mean(group.get(sourceFluxField+"_mag")))*1000)
-        sourcesnr += list(group.get((sourceFluxField+"_snr")))
 
-        meansnr.append(np.mean(group.get(sourceFluxField+"_snr")))
+        snr = group.get((sourceFluxField+"_snr"))
+        sourcesnr += list(snr)
+        meansnr.append(np.mean(snr))
 
+        # test grandes snr
+       # if meansnr>100:
+       #     nbn=5
+       #     plt.figure()
+       #     plt.hist( dra, bins=nbn)
+       #     plt.title('(ra-ramean)cosdec')
+       #     plt.figure()
+       #     plt.hist(ddec, bins=nbn)
+       #     plt.title('(dec-decmean)')
+       #     plt.figure()
+       #     plt.hist(snr, bins=nbn)
+       #     plt.title('snr')
+       #     plt.figure()
+       #     plt.hist(psf_fwhm, bins=nbn)
+       #     plt.title(' psf_fwhm')
+       #     plt.show()
+            
         FluxMag0s += list(group.get('FLUXMAG0'))
         FluxMag0Errs += list(group.get('FLUXMAG0ERR'))
 
@@ -190,6 +208,37 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
     grpMeanRAcosdec=np.array(grpMeanRAcosdec)
 
+    deltaRAcosdecs = np.array(deltaRAcosdecs)
+    deltaDecs = np.array(deltaDecs)
+    Psf_fwhm = np.array(Psf_fwhm)
+
+    brightallsnr, = np.where(np.asarray(sourcesnr) > brightSnr)
+   
+
+
+    plt.figure(figsize=(12,12))
+    plt.title('PSF FWHM vs deltaRAcosdecs')
+    plt.scatter(deltaRAcosdecs, Psf_fwhm, color=color['all'], label='all')
+    plt.scatter(deltaRAcosdecs[brightallsnr], Psf_fwhm[brightallsnr], color=color['bright'], label='bright')
+    plotPath = outputPrefix+'PsfFwhmvsdeltaRacosDec.png'
+    plt.savefig(plotPath, format="png")
+    plt.legend()
+    plt.xlabel('DeltaRaCosDec (mas)')
+    plt.ylabel('psf fwhm (as)')
+
+    plt.figure(figsize=(12,12))
+    plt.title('PSF FWHM vs deltaDecs')
+    plt.scatter(deltaDecs, Psf_fwhm, color=color['all'], label='all')
+
+    plt.scatter(deltaDecs[brightallsnr], Psf_fwhm[brightallsnr], color=color['bright'], label='bright')
+    plotPath = outputPrefix+'PsfFwhmvsdeltaDec.png'
+    plt.savefig(plotPath, format="png")
+    plt.legend()
+    plt.xlabel('DeltaDec (mas)')
+    plt.ylabel('psf fwhm (as)')
+
+
+  #  plt.show()
 
     plt.close('all')
     plt.figure()
@@ -302,9 +351,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend(prop={'size':sizelegend})
     plotPath = outputPrefix+'DistanceRMS.png'
     plt.savefig(plotPath, format="png")
-    plt.show()
+   # plt.show()
     print('lenccd', len(ccds))
-    print('lenddec',len(goodddec))
+    print('lenddec',len(deltaDecs))
     print('len fluxmag0',len(FluxMag0s))
     #     FluxMag0Errs
    # plt.figure() #test
@@ -313,14 +362,14 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
   #  plt.show()
     
   #  print('ccd',ccds)
-    print("LONGUEUR GOODDRA", len(gooddra))
+    print("LONGUEUR DELTARAS", len(deltaRAcosdecs))
     print("LONGUEUR SOURCEMAG", len(sourcemag))
     print("LONGUEUR sourceSNR", len(sourcesnr))
     #faire un script pour sortir la med et rms en fonction du temps
 
     times=[]
     dic_time={}
-    for i in range(len(gooddra)):
+    for i in range(len(deltaRAcosdecs)):
          dic_time[goodmjd[i]]={}
          dic_time[goodmjd[i]]['dra']=[]
          dic_time[goodmjd[i]]['ddec']=[]
@@ -331,9 +380,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
          dic_time[goodmjd[i]]['FluxMag0Errs']=[]
 
 
-    for i in range(len(gooddra)):
-         dic_time[goodmjd[i]]['dra'].append(gooddra[i])
-         dic_time[goodmjd[i]]['ddec'].append(goodddec[i])
+    for i in range(len(deltaRAcosdecs)):
+         dic_time[goodmjd[i]]['dra'].append(deltaRAcosdecs[i])
+         dic_time[goodmjd[i]]['ddec'].append(deltaDecs[i])
          dic_time[goodmjd[i]]['sourcedmag'].append(sourcedmag[i])
          dic_time[goodmjd[i]]['sourcesnr'].append(sourcesnr[i])
 
@@ -402,7 +451,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
     #### astrometry and photometry vs CCD ####
     dic_ccd={}
-    for i in range(len(gooddra)):
+    for i in range(len(deltaRAcosdecs)):
          dic_ccd[ccds[i]]={}
          dic_ccd[ccds[i]]['dra']=[]
          dic_ccd[ccds[i]]['ddec']=[]
@@ -411,9 +460,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
          dic_ccd[ccds[i]]['FluxMag0s']=[]
          dic_ccd[ccds[i]]['FluxMag0Errs']=[]
 
-    for i in range(len(gooddra)):
-         dic_ccd[ccds[i]]['dra'].append(gooddra[i])
-         dic_ccd[ccds[i]]['ddec'].append(goodddec[i])
+    for i in range(len(deltaRAcosdecs)):
+         dic_ccd[ccds[i]]['dra'].append(deltaRAcosdecs[i])
+         dic_ccd[ccds[i]]['ddec'].append(deltaDecs[i])
          dic_ccd[ccds[i]]['sourcedmag'].append(sourcedmag[i])
          dic_ccd[ccds[i]]['sourcesnr'].append(sourcesnr[i])
          dic_ccd[ccds[i]]['FluxMag0s'].append(FluxMag0s[i])

@@ -220,25 +220,24 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.title('PSF FWHM vs deltaRAcosdecs')
     plt.scatter(deltaRAcosdecs, Psf_fwhm, color=color['all'], label='all')
     plt.scatter(deltaRAcosdecs[brightallsnr], Psf_fwhm[brightallsnr], color=color['bright'], label='bright')
-    plotPath = outputPrefix+'PsfFwhmvsdeltaRacosDec.png'
-    plt.savefig(plotPath, format="png")
     plt.legend()
     plt.xlabel('DeltaRaCosDec (mas)')
     plt.ylabel('psf fwhm (as)')
+    plotPath = outputPrefix+'PsfFwhmvsdeltaRacosDec.png'
+    plt.savefig(plotPath, format="png")
 
     plt.figure(figsize=(12,12))
     plt.title('PSF FWHM vs deltaDecs')
     plt.scatter(deltaDecs, Psf_fwhm, color=color['all'], label='all')
 
     plt.scatter(deltaDecs[brightallsnr], Psf_fwhm[brightallsnr], color=color['bright'], label='bright')
-    plotPath = outputPrefix+'PsfFwhmvsdeltaDec.png'
-    plt.savefig(plotPath, format="png")
     plt.legend()
     plt.xlabel('DeltaDec (mas)')
     plt.ylabel('psf fwhm (as)')
+    plotPath = outputPrefix+'PsfFwhmvsdeltaDec.png'
+    plt.savefig(plotPath, format="png")
 
-
-  #  plt.show()
+    plt.show()
 
     plt.close('all')
     plt.figure()
@@ -247,20 +246,22 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.scatter(grpMeanRAcosdec[bright], groupRMSdec_bright, color=color['bright'], label='bright')
     plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='r', label='bright outliers')
     plt.legend()
-    plotPath = outputPrefix+'RAcosDecRMSvsRacosDecMean.png'
-    plt.savefig(plotPath, format="png")
     plt.xlabel('mean ra cosdec')
     plt.ylabel('rms ra cos dec')
+    plotPath = outputPrefix+'RAcosDecRMSvsRacosDecMean.png'
+    plt.savefig(plotPath, format="png")
 
     plt.figure()
     plt.title('racosdec')
     plt.scatter(grpMeanRAcosdec[bright], groupRMSdec_bright, color=color['bright'], label='bright')
     plt.scatter((grpMeanRAcosdec[bright])[bright_outliers], (groupRMSdec_bright)[bright_outliers], color='r', label='bright outliers')
-    plotPath = outputPrefix+'RAcosDecRMSvsRacosDecMean_bright.png'
-    plt.savefig(plotPath, format="png")
+
     plt.legend()
     plt.xlabel('mean ra cosdec')
     plt.ylabel('rms ra cos dec')
+
+    plotPath = outputPrefix+'RAcosDecRMSvsRacosDecMean_bright.png'
+    plt.savefig(plotPath, format="png")
 
 
 # grpMeanShapex
@@ -299,8 +300,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.scatter(groupRMSracosdec, groupRMSdec, alpha=0.8, color='b', label='all')
     plt.scatter(groupRMSracosdec_bright, groupRMSdec_bright, alpha=0.8, color='r', label='bright')
     plt.scatter(groupRMSracosdec_bright_outliers, groupRMSdec_bright_outliers, alpha=0.8, color='g', label='bright + 5 sigma outliers')
-    plt.xlabel('RMS RAcosDec')
-    plt.ylabel('RMS Dec')
+    plt.xlabel('RMS RAcosDec (mas)')
+    plt.ylabel('RMS Dec (mas)')
     plt.xlim(0,max(groupRMSracosdec))
     plt.ylim(0,max(groupRMSdec))
     plt.legend(prop={'size':sizelegend})

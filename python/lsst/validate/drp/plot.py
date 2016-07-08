@@ -122,7 +122,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     posRMS = []
 
     meansnr = []
-
+    Psf_fwhm = []
+    grpMeanPsf_fwhm = []
    # grpMeanShapex  = []### test shape
 
     for group in goodMatches.groups:
@@ -139,7 +140,12 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
       #  grpMeanShapex.append(MeanShapex)
  #  print('test base_SdssShape_y', group.get('base_SdssShape_y'))
 
+        psf_fwhm = group.get('PSF-FWHM')
+        Psf_fwhm+=list(psf_fwhm)
+        MeanPsf_fwhm = np.mean(psf_fwhm)
+        grpMeanPsf_fwhm.append(MeanPsf_fwhm)
 
+      #  print(' psf_fwhm', psf_fwhm)
         MeanRA = np.mean(RA)
         MeanDec = np.mean(Dec)
 
@@ -296,7 +302,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend(prop={'size':sizelegend})
     plotPath = outputPrefix+'DistanceRMS.png'
     plt.savefig(plotPath, format="png")
-
+    plt.show()
     print('lenccd', len(ccds))
     print('lenddec',len(goodddec))
     print('len fluxmag0',len(FluxMag0s))

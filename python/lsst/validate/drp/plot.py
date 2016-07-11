@@ -95,9 +95,6 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     sizelegend=12 # taille des legendes
     digits=1000. # precision des valeurs dans les legendes des histos
   
-    deltaRAcosdecs = [] #goodMatches.aggregate(np.ones,'coord_ra')
-    deltaDecs = [] # goodMatchesaggregate(np.ones,'coord_dec')
-
     print("LONGUEUR MAGRMS", len(mmagrms))
     print("LONGUEUR dist", len(dist))
     print(" MAGRMS", mmagrms)
@@ -106,6 +103,10 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     radToDeg = 180./np.pi
     degToArcs = 3600.
     radToArcs = radToDeg* degToArcs
+
+    deltaRAcosdecs = [] #goodMatches.aggregate(np.ones,'coord_ra')
+    deltaDecs = [] # goodMatchesaggregate(np.ones,'coord_dec')
+
     ccds = []
     sourcemag = []
     sourcedmag = []
@@ -126,19 +127,37 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     grpMeanPsf_fwhm = []
    # grpMeanShapex  = []### test shape
 
+  #  BRIGHTS=['bright', 'brightmean']
+
+  #  for suffix in BRIGHTS:
+  #      exec('psf_fwhm'+'_'+suffix +"=[]")
+
+
     for group in goodMatches.groups:
      #   group_schema=group.getSchema()
     #    print('group_schema=group.getSchema()',group_schema.getOrderedNames())
     #    print('')
         
+        
+        snr = group.get((sourceFluxField+"_snr"))
+        sourcesnr += list(snr)
+        meansnr.append(np.mean(snr))
+
         RA = group.get('coord_ra')
         Dec = group.get('coord_dec')
         
+        brightmean,= np.where(np.asarray(meansnr) > brightSnr)
+        print(' brightmean,', brightmean)
+
+        bright, = np.where(np.asarray(snr) > brightSnr)
+        print(' bright,', bright)
+
      #   print('test base_SdssShape_x', group.get('base_SdssShape_x'))
      #   Shapex = group.get('base_SdssShape_x')
       #  MeanShapex = np.mean( Shapex)
       #  grpMeanShapex.append(MeanShapex)
  #  print('test base_SdssShape_y', group.get('base_SdssShape_y'))
+
 
         psf_fwhm = group.get('PSF-FWHM')
         Psf_fwhm+=list(psf_fwhm)
@@ -160,15 +179,26 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         
         groupRMSracosdec.append( np.std(dra))
         groupRMSdec.append( np.std(ddec))
-        posRMS.append(np.sqrt( (np.std(dra))**2 + (np.std(ddec))**2))
+        posRMS.append(np.sqrt((np.std(dra))**2 + (np.std(ddec))**2))
         
         goodmjd += list(group.get('MJD-OBS'))
         sourcemag += list((group.get(sourceFluxField+"_mag"))*1000)
         sourcedmag += list((group.get(sourceFluxField+"_mag") - np.mean(group.get(sourceFluxField+"_mag")))*1000)
 
-        snr = group.get((sourceFluxField+"_snr"))
-        sourcesnr += list(snr)
-        meansnr.append(np.mean(snr))
+        FluxMag0s += list(group.get('FLUXMAG0'))
+        FluxMag0Errs += list(group.get('FLUXMAG0ERR'))
+
+        ccds += list(group.get('ccd'))
+
+
+        # for suffix in BRIGHTS:
+        #     var_dra='dra'+'_'+suffix
+        #     var_ddec='ddec'+'_'+suffix
+        #     var_grpMeanRAcosdec=' grpMeanRAcosdec'+'_'+suffix
+        #     var_grpMeanDec='grpMeanDec'+'_'+suffix
+      
+
+
 
         # test grandes snr
        # if meansnr>100:
@@ -187,10 +217,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
        #     plt.title(' psf_fwhm')
        #     plt.show()
             
-        FluxMag0s += list(group.get('FLUXMAG0'))
-        FluxMag0Errs += list(group.get('FLUXMAG0ERR'))
+    
 
-        ccds += list(group.get('ccd'))
     
     bright, = np.where(np.asarray(meansnr) > brightSnr)
    # bright2, = np.where(np.asarray(snr) > brightSnr) # ???  # vient de goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey) dans validate.py# 

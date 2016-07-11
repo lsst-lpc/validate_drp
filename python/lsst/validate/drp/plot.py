@@ -122,7 +122,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     groupRMSdec = []
     posRMS = []
 
-    meansnr = []
+    medsnr = []
+    medsnrlong = []
     Psf_fwhm = []
     grpMeanPsf_fwhm = []
    # grpMeanShapex  = []### test shape
@@ -134,19 +135,20 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
 
     for group in goodMatches.groups:
-        group_schema=group.getSchema()
-        print('group_schema=group.getSchema()',group_schema.getOrderedNames())
-        print('')
+      #  group_schema=group.getSchema()
+      #  print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+      #  print('')
         
         
         snr = group.get((sourceFluxField+"_snr"))
         sourcesnr += list(snr)
-        meansnr.append(np.mean(snr))
-
+        medsnr.append(np.median(snr))
+        medsnrlong += list(np.ones(len(snr))*np.mean(snr))
+        # print('medsnrlong',medsnrlong)
         RA = group.get('coord_ra')
         Dec = group.get('coord_dec')
         
-    #    brightmean,= np.where(np.asarray(meansnr) > brightSnr)
+    #    brightmean,= np.where(np.asarray(medsnr) > brightSnr)
      #   print(' brightmean,', brightmean)
 
    #     bright, = np.where(np.asarray(snr) > brightSnr)
@@ -201,7 +203,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
 
         # test grandes snr
-       # if meansnr>100:
+       # if medsnr>100:
        #     nbn=5
        #     plt.figure()
        #     plt.hist( dra, bins=nbn)
@@ -220,7 +222,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     
 
     
-    bright, = np.where(np.asarray(meansnr) > brightSnr)
+    bright, = np.where(np.asarray(medsnr) > brightSnr)
    # bright2, = np.where(np.asarray(snr) > brightSnr) # ???  # vient de goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey) dans validate.py# 
 
     groupRMSracosdec_bright = np.array(groupRMSracosdec)[bright]
@@ -240,8 +242,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     deltaDecs = np.array(deltaDecs)
     Psf_fwhm = np.array(Psf_fwhm)
 
-    brightallsnr, = np.where(np.asarray(sourcesnr) > brightSnr)
-   
+    #brightallsnr, = np.where(np.asarray(sourcesnr) > brightSnr)
+    brightallsnr, = np.where(np.asarray(medsnrlong) > brightSnr) #pour avoir le meme cut sur les snr medianes
 
 
     plt.figure(figsize=(12,12))

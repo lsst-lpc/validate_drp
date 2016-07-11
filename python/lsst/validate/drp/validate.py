@@ -270,7 +270,9 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
         if not np.isfinite(cat.get(psfMagKey)).all():
             return False
         # ### Selections in JointCal
+       # print('(dir(cat)',dir(cat))
         for src in cat:
+            print('(dir(src)',dir(src))
             # Reject negative flux
             flux = src.get(fluxKey)
             
@@ -290,10 +292,20 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
             if src.get(parentKey) != 0:
                 print("parentKey Rejection")
                 return False
-          #  footprint = src.getFootprint() # ????
-          #  if footprint is not None and len(footprint.getPeaks()) > 1:
-          #      return False
- 
+         #   footprint = src.getFootprint() # ???
+         #   if footprint is not None and len(footprint.getPeaks()) > 1:
+         #       return False
+          # Check consistency of variances and second moments
+            vx = np.square(src.get(centroid + "_xSigma"))
+            vy = np.square(src.get(centroid + "_ySigma"))
+            mxx = src.get(shape + "_xx")
+            myy = src.get(shape + "_yy")
+            mxy = src.get(shape + "_xy")
+            vxy = mxy*(vx+vy)/(mxx+myy)
+
+            if vxy*vxy > vx*vy or np.isnan(vx) or np.isnan(vy):
+                print('shapevxy*vxy > vx*vy or np.isnan(vx) or np.isnan(vy) rejection')
+                return False
 
         # ## fin nouveaux ajouts
         psfSnr = np.median(cat.get(psfSnrKey))
@@ -859,105 +871,105 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
 
 # Selections in JointCal (Pierre Astier):
 
-class StarSelectorConfig(pexConfig.Config):
-
-    badFlags = pexConfig.ListField(
-        doc = "List of flags which cause a source to be rejected as bad",
-        dtype = str,
-        default = ["base_PixelFlags_flag_saturated",
-                   "base_PixelFlags_flag_cr",
-                   "base_PixelFlags_flag_interpolated",
-                   "base_SdssCentroid_flag",
-                   "base_SdssShape_flag"],
-    )
-    sourceFluxField = pexConfig.Field(
-        doc = "Type of source flux",
-        dtype = str,
-        default = "slot_CalibFlux"
-    )
-    maxMag = pexConfig.Field(
-        doc = "Maximum magnitude for sources to be included in the fit",
-        dtype = float,
-        default = 22.5,
-    )
-    coaddName = pexConfig.Field(
-        doc = "Type of coadd",
-        dtype = str,
-        default = "deep"
-    )
-    centroid = pexConfig.Field(
-        doc = "Centroid type for position estimation",
-        dtype = str,
-        default = "base_SdssCentroid",
-    )
-    shape = pexConfig.Field(
-        doc = "Shape for error estimation",
-        dtype = str,
-        default = "base_SdssShape",
-    )
-
-
-class StarSelector(object):
-
-    ConfigClass = StarSelectorConfig
-
-    def __init__(self, config):
-        """Construct a star selector
-        @param[in] config: An instance of StarSelectorConfig
-        """
-        self.config = config
-
-    def select(self, srcCat, calib):
-        """Return a catalog containing only reasonnable stars / galaxies."""
-
-        schema = srcCat.getSchema()
-        newCat = afwTable.SourceCatalog(schema)
-        fluxKey = schema[self.config.sourceFluxField+"_flux"].asKey()
-        fluxErrKey = schema[self.config.sourceFluxField+"_fluxSigma"].asKey()
-        parentKey = schema["parent"].asKey()
-        flagKeys = []
-        for f in self.config.badFlags:
-            key = schema[f].asKey()
-            flagKeys.append(key)
-        fluxFlagKey = schema[self.config.sourceFluxField+"_flag"].asKey()
-        flagKeys.append(fluxFlagKey)
-
-        for src in srcCat:
-            # Do not consider sources with bad flags
-            for f in flagKeys:
-                rej = 0
-                if src.get(f):
-                    rej = 1
-                    break
-            if rej == 1:
-                continue
-            # Reject negative flux
-            flux = src.get(fluxKey)
-            if flux < 0:
-                continue
-            # Reject objects with too large magnitude
-            fluxErr = src.get(fluxErrKey)
-            mag, magErr = calib.getMagnitude(flux, fluxErr)
-            if mag > self.config.maxMag or magErr > 0.1 or flux/fluxErr < 10:
-                continue
-            # Reject blends
-            if src.get(parentKey) != 0:
-                continue
-            footprint = src.getFootprint()
-            if footprint is not None and len(footprint.getPeaks()) > 1:
-                continue
-
-            # Check consistency of variances and second moments
-            vx = np.square(src.get(self.config.centroid + "_xSigma"))
-            vy = np.square(src.get(self.config.centroid + "_ySigma"))
-            mxx = src.get(self.config.shape + "_xx")
-            myy = src.get(self.config.shape + "_yy")
-            mxy = src.get(self.config.shape + "_xy")
-            vxy = mxy*(vx+vy)/(mxx+myy)
-
-            if vxy*vxy > vx*vy or np.isnan(vx) or np.isnan(vy):
-                continue
-
-            newCat.append(src)
-
-        return newCat
+#class StarSelectorConfig(pexConfig.Config):
+#
+#    badFlags = pexConfig.ListField(
+#        doc = "List of flags which cause a source to be rejected as bad",
+#        dtype = str,
+#        default = ["base_PixelFlags_flag_saturated",
+#                   "base_PixelFlags_flag_cr",
+#                   "base_PixelFlags_flag_interpolated",
+#                   "base_SdssCentroid_flag",
+#                   "base_SdssShape_flag"],
+#    )
+#    sourceFluxField = pexConfig.Field(
+#        doc = "Type of source flux",
+#        dtype = str,
+#        default = "slot_CalibFlux"
+#    )
+#    maxMag = pexConfig.Field(
+#        doc = "Maximum magnitude for sources to be included in the fit",
+#        dtype = float,
+#        default = 22.5,
+#    )
+#    coaddName = pexConfig.Field(
+#        doc = "Type of coadd",
+#        dtype = str,
+#        default = "deep"
+#    )
+#    centroid = pexConfig.Field(
+#        doc = "Centroid type for position estimation",
+#        dtype = str,
+#        default = "base_SdssCentroid",
+#    )
+#    shape = pexConfig.Field(
+#        doc = "Shape for error estimation",
+#        dtype = str,
+#        default = "base_SdssShape",
+#    )
+#
+#
+#class StarSelector(object):
+#
+#    ConfigClass = StarSelectorConfig
+#
+#    def __init__(self, config):
+#        """Construct a star selector
+#        @param[in] config: An instance of StarSelectorConfig
+#        """
+#        self.config = config
+#
+#    def select(self, srcCat, calib):
+#        """Return a catalog containing only reasonnable stars / galaxies."""
+#
+#        schema = srcCat.getSchema()
+#        newCat = afwTable.SourceCatalog(schema)
+#        fluxKey = schema[self.config.sourceFluxField+"_flux"].asKey()
+#        fluxErrKey = schema[self.config.sourceFluxField+"_fluxSigma"].asKey()
+#        parentKey = schema["parent"].asKey()
+#        flagKeys = []
+#        for f in self.config.badFlags:
+#            key = schema[f].asKey()
+#            flagKeys.append(key)
+#        fluxFlagKey = schema[self.config.sourceFluxField+"_flag"].asKey()
+#        flagKeys.append(fluxFlagKey)
+#
+#        for src in srcCat:
+#            # Do not consider sources with bad flags
+#            for f in flagKeys:
+#                rej = 0
+#                if src.get(f):
+#                    rej = 1
+#                    break
+#            if rej == 1:
+#                continue
+#            # Reject negative flux
+#            flux = src.get(fluxKey)
+#            if flux < 0:
+#                continue
+#            # Reject objects with too large magnitude
+#            fluxErr = src.get(fluxErrKey)
+#            mag, magErr = calib.getMagnitude(flux, fluxErr)
+#            if mag > self.config.maxMag or magErr > 0.1 or flux/fluxErr < 10:
+#                continue
+#            # Reject blends
+#            if src.get(parentKey) != 0:
+#                continue
+#            footprint = src.getFootprint()
+#            if footprint is not None and len(footprint.getPeaks()) > 1:
+#                continue
+#
+#            # Check consistency of variances and second moments
+#            vx = np.square(src.get(self.config.centroid + "_xSigma"))
+#            vy = np.square(src.get(self.config.centroid + "_ySigma"))
+#            mxx = src.get(self.config.shape + "_xx")
+#            myy = src.get(self.config.shape + "_yy")
+#            mxy = src.get(self.config.shape + "_xy")
+#            vxy = mxy*(vx+vy)/(mxx+myy)
+#
+#            if vxy*vxy > vx*vy or np.isnan(vx) or np.isnan(vy):
+#                continue
+#
+#            newCat.append(src)
+#
+#        return newCat

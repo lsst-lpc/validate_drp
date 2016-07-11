@@ -63,7 +63,7 @@ commentsFluxFields = ['PSF','CircularAperture 6_0']
 
 def loadAndMatchData(repo, dataIds,
                      matchRadius=afwGeom.Angle(1, afwGeom.arcseconds),
-                     verbose=False):
+                     verbose=False, MetaData=False):
     """Load data from specific visit.  Match with reference.
 
     Parameters
@@ -230,30 +230,27 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     """
 
     # Filter down to matches with at least 2 sources and good flags
+
  #   flagKeys = [allMatches.schema.find("base_PixelFlags_flag_%s" % flag).key 
  #               for flag in ("saturated", "cr", "bad", "edge")] #anciens flags
  #   nMatchesRequired = 2
 
-
-   # badFlags = pexConfig.ListField( # flags jointcal (pris par Pierre astier)
-   #     doc = "List of flags which cause a source to be rejected as bad",
-   #     dtype = str,
-   #     default = [ "base_PixelFlags_flag_saturated", 
-   #                 "base_PixelFlags_flag_cr",
-   #                 "base_PixelFlags_flag_interpolated",
-   #                 "base_SdssCentroid_flag",
-   #                 "base_SdssShape_flag"],
-   #     )
- 
-    # Filter down to matches with at least 2 sources and good flags
     flagKeys = [allMatches.schema.find("base_%s" % flag).key
                 for flag in ("PixelFlags_flag_saturated", "PixelFlags_flag_cr", "PixelFlags_flag_bad", "PixelFlags_flag_edge", "SdssCentroid_flag", "SdssShape_flag")] #en considerant les flags deja pris plus ceux d'astier
-    nMatchesRequired = 2 # pourquoi 2 ?
+    nMatchesRequired = 2 
 
 
-    psfSnrKey = allMatches.schema.find( sourceFluxField+"_snr").key
-    psfMagKey = allMatches.schema.find( sourceFluxField+"_mag").key
-    psfMagErrKey = allMatches.schema.find( sourceFluxField+"_magerr").key
+    psfSnrKey = allMatches.schema.find(sourceFluxField+"_snr").key  # il faudrait renommer les "psf*" en autre chose, vu que cela depend maintenant de sourceFluxField
+    psfMagKey = allMatches.schema.find(sourceFluxField+"_mag").key
+    psfMagErrKey = allMatches.schema.find(sourceFluxField+"_magerr").key
+    # ###
+    centroid = "base_SdssCentroid"
+    shape = "base_SdssShape"
+
+    fluxKey = allMatches.schema.find(sourceFluxField+"_flux").key
+    fluxErrKey = allMatches.schema.find(sourceFluxField+"_fluxSigma").key
+    parentKey = allMatches.schema.find("parent").key
+    # ##
  #   schemaAllMatches=allMatches.schema#
  #   print('=============================== schemaAllMatches',schemaAllMatches.getOrderedNames())
 
@@ -262,14 +259,43 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     # psfMagErrKey = allMatches.schema.find("base_PsfFlux_magerr").key
     extendedKey = allMatches.schema.find("base_ClassificationExtendedness_value").key
 
-    def goodFilter(cat, goodSnr=3):
+
+    
+    def goodFilter(cat, goodSnr=3, maxMag=22.5):
         if len(cat) < nMatchesRequired:
             return False
-        for flagKey in flagKeys:
+        for flagKey in flagKeys: # ne pas considerer les sources avec des bad flags
             if cat.get(flagKey).any():
                 return False
         if not np.isfinite(cat.get(psfMagKey)).all():
             return False
+        # ### Selections in JointCal
+        for src in cat:
+            # Reject negative flux
+            flux = src.get(fluxKey)
+            
+            if flux < 0:
+                print('flux negatif', flux)
+                return False
+            # Reject objects with too large magnitude
+
+            mag = src.get(psfMagKey)
+            magErr = src.get(psfMagErrKey)
+            fluxErr = src.get(fluxErrKey)
+ 
+            if mag > maxMag or magErr > 0.1 or flux/fluxErr < 10:
+                #print('mag or magERR rejected')
+                return False
+            # Reject blends (?)
+            if src.get(parentKey) != 0:
+                print("parentKey Rejection")
+                return False
+          #  footprint = src.getFootprint() # ????
+          #  if footprint is not None and len(footprint.getPeaks()) > 1:
+          #      return False
+ 
+
+        # ## fin nouveaux ajouts
         psfSnr = np.median(cat.get(psfSnrKey))
         # Note that this also implicitly checks for psfSnr being non-nan.
         return psfSnr >= goodSnr
@@ -597,7 +623,8 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
 
     filterName = set([dId['filter'] for dId in visitDataIds]).pop()
     allMatches = loadAndMatchData(repo, visitDataIds, verbose=verbose)
-    struct = analyzeData(allMatches, brightSnr, verbose=verbose)
+   # allMatches, metaData = loadAndMatchData(repo, visitDataIds, verbose=verbose, MetaData=True)
+    struct = analyzeData(allMatches, brightSnr,  verbose=verbose)
 
     magavg = struct.mag
     magerr = struct.magerr
@@ -816,3 +843,121 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
             if metric:
                 outfile = outputPrefix + "%s.json" % metric.name
                 saveKpmToJson(metric, outfile)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Selections in JointCal (Pierre Astier):
+
+class StarSelectorConfig(pexConfig.Config):
+
+    badFlags = pexConfig.ListField(
+        doc = "List of flags which cause a source to be rejected as bad",
+        dtype = str,
+        default = ["base_PixelFlags_flag_saturated",
+                   "base_PixelFlags_flag_cr",
+                   "base_PixelFlags_flag_interpolated",
+                   "base_SdssCentroid_flag",
+                   "base_SdssShape_flag"],
+    )
+    sourceFluxField = pexConfig.Field(
+        doc = "Type of source flux",
+        dtype = str,
+        default = "slot_CalibFlux"
+    )
+    maxMag = pexConfig.Field(
+        doc = "Maximum magnitude for sources to be included in the fit",
+        dtype = float,
+        default = 22.5,
+    )
+    coaddName = pexConfig.Field(
+        doc = "Type of coadd",
+        dtype = str,
+        default = "deep"
+    )
+    centroid = pexConfig.Field(
+        doc = "Centroid type for position estimation",
+        dtype = str,
+        default = "base_SdssCentroid",
+    )
+    shape = pexConfig.Field(
+        doc = "Shape for error estimation",
+        dtype = str,
+        default = "base_SdssShape",
+    )
+
+
+class StarSelector(object):
+
+    ConfigClass = StarSelectorConfig
+
+    def __init__(self, config):
+        """Construct a star selector
+        @param[in] config: An instance of StarSelectorConfig
+        """
+        self.config = config
+
+    def select(self, srcCat, calib):
+        """Return a catalog containing only reasonnable stars / galaxies."""
+
+        schema = srcCat.getSchema()
+        newCat = afwTable.SourceCatalog(schema)
+        fluxKey = schema[self.config.sourceFluxField+"_flux"].asKey()
+        fluxErrKey = schema[self.config.sourceFluxField+"_fluxSigma"].asKey()
+        parentKey = schema["parent"].asKey()
+        flagKeys = []
+        for f in self.config.badFlags:
+            key = schema[f].asKey()
+            flagKeys.append(key)
+        fluxFlagKey = schema[self.config.sourceFluxField+"_flag"].asKey()
+        flagKeys.append(fluxFlagKey)
+
+        for src in srcCat:
+            # Do not consider sources with bad flags
+            for f in flagKeys:
+                rej = 0
+                if src.get(f):
+                    rej = 1
+                    break
+            if rej == 1:
+                continue
+            # Reject negative flux
+            flux = src.get(fluxKey)
+            if flux < 0:
+                continue
+            # Reject objects with too large magnitude
+            fluxErr = src.get(fluxErrKey)
+            mag, magErr = calib.getMagnitude(flux, fluxErr)
+            if mag > self.config.maxMag or magErr > 0.1 or flux/fluxErr < 10:
+                continue
+            # Reject blends
+            if src.get(parentKey) != 0:
+                continue
+            footprint = src.getFootprint()
+            if footprint is not None and len(footprint.getPeaks()) > 1:
+                continue
+
+            # Check consistency of variances and second moments
+            vx = np.square(src.get(self.config.centroid + "_xSigma"))
+            vy = np.square(src.get(self.config.centroid + "_ySigma"))
+            mxx = src.get(self.config.shape + "_xx")
+            myy = src.get(self.config.shape + "_yy")
+            mxy = src.get(self.config.shape + "_xy")
+            vxy = mxy*(vx+vy)/(mxx+myy)
+
+            if vxy*vxy > vx*vy or np.isnan(vx) or np.isnan(vy):
+                continue
+
+            newCat.append(src)
+
+        return newCat

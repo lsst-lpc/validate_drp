@@ -95,9 +95,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     sizelegend=12 # taille des legendes
     digits=1000. # precision des valeurs dans les legendes des histos
   
-    print("LONGUEUR MAGRMS", len(mmagrms))
-    print("LONGUEUR dist", len(dist))
-    print(" MAGRMS", mmagrms)
+  #  print("LONGUEUR MAGRMS", len(mmagrms))
+  #  print("LONGUEUR dist", len(dist))
+  #  print(" MAGRMS", mmagrms)
     compt = 0
     goodmjd = []
     radToDeg = 180./np.pi
@@ -134,9 +134,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
 
     for group in goodMatches.groups:
-     #   group_schema=group.getSchema()
-    #    print('group_schema=group.getSchema()',group_schema.getOrderedNames())
-    #    print('')
+        group_schema=group.getSchema()
+        print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        print('')
         
         
         snr = group.get((sourceFluxField+"_snr"))
@@ -146,11 +146,11 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         RA = group.get('coord_ra')
         Dec = group.get('coord_dec')
         
-        brightmean,= np.where(np.asarray(meansnr) > brightSnr)
-        print(' brightmean,', brightmean)
+    #    brightmean,= np.where(np.asarray(meansnr) > brightSnr)
+     #   print(' brightmean,', brightmean)
 
-        bright, = np.where(np.asarray(snr) > brightSnr)
-        print(' bright,', bright)
+   #     bright, = np.where(np.asarray(snr) > brightSnr)
+   #     print(' bright,', bright)
 
      #   print('test base_SdssShape_x', group.get('base_SdssShape_x'))
      #   Shapex = group.get('base_SdssShape_x')

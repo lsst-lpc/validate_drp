@@ -261,8 +261,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.close('all')
 
     plt.figure(figsize=(12,12))
-    plt.title('PSF FWHM)
-    plt.hist(Psf_fwhm, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
+    plt.title('PSF FWHM')
+    plt.hist(Psf_fwhm, histtype ='stepfilled', alpha=0.8, color='b')
     histB = plt.hist(Psf_fwhm[brightallsnr] ,histtype ='stepfilled',alpha=0.8,color='r')
     plt.axvline(np.median(Psf_fwhm), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(Psf_fwhm)*digits)/digits)+'as')
     plt.axvline(np.median(Psf_fwhm[brightallsnr]), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(Psf_fwhm[brightallsnr] )*digits)/digits)+'as')

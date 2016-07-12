@@ -859,7 +859,7 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         for metric in (AM1, AM2, AM3, PA1, PA2):
             if metric:
                 outfile = outputPrefix + "%s.json" % metric.name
-                saveKpmToJson
+                saveKpmToJson(metric, outfile)
 
 
 

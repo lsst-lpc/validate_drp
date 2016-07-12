@@ -261,7 +261,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
 
 
     
-    def goodFilter(cat, goodSnr=3, maxMag=22.5):
+    def goodFilter(cat, goodSnr=3):#, maxMag=22.5):
         if len(cat) < nMatchesRequired:
             return False
         for flagKey in flagKeys: # ne pas considerer les sources avec des bad flags
@@ -272,7 +272,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
         # ### Selections in JointCal
        # print('(dir(cat)',dir(cat))
         for src in cat:
-            print('(dir(src)',dir(src))
+            # print('(dir(src)',dir(src))
             # Reject negative flux
             flux = src.get(fluxKey)
             
@@ -285,9 +285,10 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
             magErr = src.get(psfMagErrKey)
             fluxErr = src.get(fluxErrKey)
  
-            if mag > maxMag or magErr > 0.1 or flux/fluxErr < 10:
-                #print('mag or magERR rejected')
-                return False
+            # if mag > maxMag or magErr > 0.1 or flux/fluxErr < 10: # 
+          #  if magErr > 0.1 or flux/fluxErr < 10:
+          #      #print('mag or magERR rejected')
+          #      return False
             # Reject blends (?)
             if src.get(parentKey) != 0:
                 print("parentKey Rejection")
@@ -665,8 +666,12 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
                         outputPrefix=outputPrefix)
  
         plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, struct.goodMatches, mmagrms,
-                       fit_params=astromStruct.params, srcFluxField=sourceFluxField,
-                       brightSnr=brightSnr, outputPrefix=outputPrefix)
+                                   fit_params=astromStruct.params, srcFluxField=sourceFluxField,
+                                   brightSnr=brightSnr, outputPrefix=outputPrefix)
+
+        plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, struct.goodMatches, mmagrms,
+                                   fit_params=astromStruct.params, srcFluxField=sourceFluxField,
+                                   brightSnr=brightSnr, outputPrefix=outputPrefix, zoom=True)
 
 
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
@@ -854,8 +859,7 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         for metric in (AM1, AM2, AM3, PA1, PA2):
             if metric:
                 outfile = outputPrefix + "%s.json" % metric.name
-                saveKpmToJson(metric, outfile)
-
+                saveKpmToJson
 
 
 

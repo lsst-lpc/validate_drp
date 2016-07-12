@@ -88,9 +88,14 @@ def plotVisitVsTime(goodMatches,
 
 
 def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
-                                fit_params=None, brightSnr=100, srcFluxField='base_PsfFlux',
-                                outputPrefix=""):
+                               fit_params=None, brightSnr=100, srcFluxField='base_PsfFlux',
+                               outputPrefix="",
+                               zoom=False):
+
     sourceFluxField=srcFluxField
+
+    if zoom:
+        outputPrefix=outputPrefix+"_zoom_"
 
     sizelegend=12 # taille des legendes
     digits=1000. # precision des valeurs dans les legendes des histos
@@ -201,7 +206,6 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
       
 
 
-
         # test grandes snr
        # if medsnr>100:
        #     nbn=5
@@ -253,17 +257,22 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend()
     plt.xlabel('DeltaRaCosDec (mas)')
     plt.ylabel('psf fwhm (as)')
+    if zoom:
+        plt.xlim(-75.,75.)
+        plt.ylim(min(Psf_fwhm),max(Psf_fwhm))
     plotPath = outputPrefix+'PsfFwhmvsdeltaRacosDec.png'
     plt.savefig(plotPath, format="png")
 
     plt.figure(figsize=(12,12))
     plt.title('PSF FWHM vs deltaDecs')
     plt.scatter(deltaDecs, Psf_fwhm, color=color['all'], label='all')
-
     plt.scatter(deltaDecs[brightallsnr], Psf_fwhm[brightallsnr], color=color['bright'], label='bright')
     plt.legend()
     plt.xlabel('DeltaDec (mas)')
     plt.ylabel('psf fwhm (as)')
+    if zoom:
+        plt.xlim(-75.,75.)
+        plt.ylim(min(Psf_fwhm),max(Psf_fwhm))
     plotPath = outputPrefix+'PsfFwhmvsdeltaDec.png'
     plt.savefig(plotPath, format="png")
 
@@ -334,6 +343,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.ylabel('RMS Dec (mas)')
     plt.xlim(0,max(groupRMSracosdec))
     plt.ylim(0,max(groupRMSdec))
+    if zoom:
+        plt.xlim(0.,55.)
+        plt.ylim(0.,55.)
     plt.legend(prop={'size':sizelegend})
     plotPath = outputPrefix+'RAcosDecRMSvsDecRMS.png'
     plt.savefig(plotPath, format="png")
@@ -351,6 +363,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.xlabel('RMS RAcosDec')
     plt.ylabel('#/bin')
     plt.legend(prop={'size':sizelegend})
+    if zoom:
+        plt.xlim(0.,55.)
     plotPath = outputPrefix+'RAcosDecRMS.png'
     plt.savefig(plotPath, format="png")
 
@@ -365,6 +379,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.xlabel('RMS Dec')
     plt.ylabel('#/bin')
     plt.legend(prop={'size':sizelegend})
+    if zoom:
+        plt.xlim(0.,55.)
     plotPath = outputPrefix+'DecRMS.png'
     plt.savefig(plotPath, format="png")
 
@@ -380,6 +396,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.xlabel('RMS distance')
     plt.ylabel('#/bin')
     plt.legend(prop={'size':sizelegend})
+    if zoom:
+        plt.xlim(0.,55.)
     plotPath = outputPrefix+'DistanceRMS.png'
     plt.savefig(plotPath, format="png")
    # plt.show()
@@ -391,7 +409,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
    # plt.plot( FluxMag0s)
   #  plt.title('FluxMag0')
   #  plt.show()
-    
+    if zoom:
+        return
+
   #  print('ccd',ccds)
     print("LONGUEUR DELTARAS", len(deltaRAcosdecs))
     print("LONGUEUR SOURCEMAG", len(sourcemag))

@@ -83,6 +83,14 @@ def plotVisitVsTime(goodMatches,
     plt.title('Visit in function of Time (mjd)')
     plotPath = outputPrefix + 'VisitVsTime.png'
     plt.savefig(plotPath, format="png")
+
+    plt.figure(figsize=(12,10))
+    plt.scatter(mjd, visit )
+    plt.xlabel('t (mjd)')
+    plt.ylabel('visit')
+    plt.title('Visit in function of Time (mjd)')
+    plotPath = outputPrefix + 'VisitVsTime_mjd.png'
+    plt.savefig(plotPath, format="png")
      #plt.show()
 
 
@@ -250,6 +258,28 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     brightallsnr, = np.where(np.asarray(medsnrlong) > brightSnr) #pour avoir le meme cut sur les snr medianes
 
 
+    plt.close('all')
+
+    plt.figure(figsize=(12,12))
+    plt.title('PSF FWHM)
+    plt.hist(Psf_fwhm, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
+    histB = plt.hist(Psf_fwhm[brightallsnr] ,histtype ='stepfilled',alpha=0.8,color='r')
+    plt.axvline(np.median(Psf_fwhm), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(Psf_fwhm)*digits)/digits)+'as')
+    plt.axvline(np.median(Psf_fwhm[brightallsnr]), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(Psf_fwhm[brightallsnr] )*digits)/digits)+'as')
+ 
+    plt.xlabel('psf fwhm (as)')
+    plt.ylabel('# / bin')
+    plt.legend(prop={'size':sizelegend})
+    if zoom:
+        plt.xlim(0.,55.)
+        plt.ylim(0., max( histB[0]))
+    plotPath = outputPrefix+'PsfFwhmvshist.png'
+    plt.savefig(plotPath, format="png")
+
+
+
+
+
     plt.figure(figsize=(12,12))
     plt.title('PSF FWHM vs deltaRAcosdecs')
     plt.scatter(deltaRAcosdecs, Psf_fwhm, color=color['all'], label='all')
@@ -355,7 +385,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.figure()
     plt.title('racosdec')
     plt.hist(groupRMSracosdec, bins=50, histtype ='stepfilled', alpha=0.8, color='b')# label='RMS='+str(int(np.std(groupRMSracosdec)*digits)/digits)+'mAcs\nMean='+str(int(np.mean(groupRMSracosdec)*digits)/digits)+'mAcs',alpha=0.5)#,histtype ='stepfilled',alpha=0.8,color='r')
-    plt.hist(groupRMSracosdec_bright,histtype ='stepfilled',alpha=0.8,color='r')
+    histB = plt.hist(groupRMSracosdec_bright,histtype ='stepfilled',alpha=0.8,color='r')
     plt.axvline(np.median(groupRMSracosdec), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(groupRMSracosdec)*digits)/digits)+'mas')
     plt.axvline(np.median(groupRMSracosdec_bright), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(groupRMSracosdec_bright)*digits)/digits)+'mas')
     plt.hist(groupRMSracosdec_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')
@@ -365,13 +395,14 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend(prop={'size':sizelegend})
     if zoom:
         plt.xlim(0.,55.)
+        plt.ylim(0., max( histB[0]))
     plotPath = outputPrefix+'RAcosDecRMS.png'
     plt.savefig(plotPath, format="png")
 
     plt.figure()
     plt.title('dec')
     plt.hist(groupRMSdec, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
-    plt.hist(groupRMSdec_bright,histtype ='stepfilled', alpha=0.8,color='r')
+    histB = plt.hist(groupRMSdec_bright,histtype ='stepfilled', alpha=0.8,color='r')
     plt.hist(groupRMSdec_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')
     plt.axvline(np.median(groupRMSdec), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(groupRMSdec)*digits)/digits)+'mas')
     plt.axvline(np.median(groupRMSdec_bright), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(groupRMSdec_bright)*digits)/digits)+'mas')
@@ -381,13 +412,14 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend(prop={'size':sizelegend})
     if zoom:
         plt.xlim(0.,55.)
+        plt.ylim(0., max( histB[0]))
     plotPath = outputPrefix+'DecRMS.png'
     plt.savefig(plotPath, format="png")
 
     plt.figure()
     plt.title('RMS distances (equiv plotAstrometry)')
     plt.hist(posRMS, bins=50, histtype ='stepfilled', alpha=0.8, color='b')
-    plt.hist(posRMS_bright,histtype ='stepfilled',alpha=0.8,color='r')
+    histB = plt.hist(posRMS_bright,histtype ='stepfilled',alpha=0.8,color='r')
     plt.hist(posRMS_bright_outliers ,histtype ='stepfilled',alpha=0.5,color='g')
     plt.axvline(np.median(posRMS), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(posRMS)*digits)/digits)+'mas')
     plt.axvline(np.median(posRMS_bright), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(posRMS_bright)*digits)/digits)+'mas')
@@ -398,6 +430,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend(prop={'size':sizelegend})
     if zoom:
         plt.xlim(0.,55.)
+        plt.ylim(0., max( histB[0]))
     plotPath = outputPrefix+'DistanceRMS.png'
     plt.savefig(plotPath, format="png")
    # plt.show()

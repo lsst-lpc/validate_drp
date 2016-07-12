@@ -236,7 +236,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
  #   nMatchesRequired = 2
 
     flagKeys = [allMatches.schema.find("base_%s" % flag).key
-                for flag in ("PixelFlags_flag_saturated", "PixelFlags_flag_cr", "PixelFlags_flag_bad", "PixelFlags_flag_edge", "SdssCentroid_flag", "SdssShape_flag")] #en considerant les flags deja pris plus ceux d'astier
+                for flag in ("PixelFlags_flag_saturated", "PixelFlags_flag_cr", "PixelFlags_flag_bad", "PixelFlags_flag_edge", "SdssCentroid_flag", "SdssShape_flag")] # considering flags from jointcal
     nMatchesRequired = 2 
 
 
@@ -327,9 +327,9 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     safeMatches = goodMatches.where(safeFilter)
 
     # Pass field=psfMagKey so np.mean just gets that as its input
-    goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey)  # SNR
-    goodPsfMag = goodMatches.aggregate(np.mean, field=psfMagKey)  # mag
-    goodPsfMagRms = goodMatches.aggregate(np.std, field=psfMagKey)  # mag
+    goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey)
+    goodPsfMag = goodMatches.aggregate(np.mean, field=psfMagKey)
+    goodPsfMagRms = goodMatches.aggregate(np.std, field=psfMagKey)
     goodPsfMagErr = goodMatches.aggregate(np.median, field=psfMagErrKey)
     # positionRms knows how to query a group so we give it the whole thing
     #   by going with the default `field=None`.

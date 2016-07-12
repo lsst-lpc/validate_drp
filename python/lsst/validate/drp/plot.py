@@ -101,13 +101,12 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
                                zoom=False):
 
     sourceFluxField=srcFluxField
-
-    if zoom:
-        outputPrefix=outputPrefix+"_zoom_"
-
     sizelegend=12 # taille des legendes
     digits=1000. # precision des valeurs dans les legendes des histos
-  
+
+    if zoom: 
+        outputPrefix=outputPrefix+"zoom_" # pour sauvegarder aussi les plots avec des zoom
+
   #  print("LONGUEUR MAGRMS", len(mmagrms))
   #  print("LONGUEUR dist", len(dist))
   #  print(" MAGRMS", mmagrms)
@@ -139,19 +138,17 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     medsnrlong = []
     Psf_fwhm = []
     grpMeanPsf_fwhm = []
-   # grpMeanShapex  = []### test shape
+    # grpMeanShapex  = []### test shape
 
-  #  BRIGHTS=['bright', 'brightmean']
-
-  #  for suffix in BRIGHTS:
-  #      exec('psf_fwhm'+'_'+suffix +"=[]")
-
+    # TO DO : implementer une coupure sur les sources individuellement
+    # BRIGHTS=['bright', 'brightmean']
+    #  for suffix in BRIGHTS:
+    #      exec('psf_fwhm'+'_'+suffix +"=[]")
 
     for group in goodMatches.groups:
-      #  group_schema=group.getSchema()
-      #  print('group_schema=group.getSchema()',group_schema.getOrderedNames())
-      #  print('')
-        
+        # group_schema=group.getSchema()
+        # print('group_schema=group.getSchema()',group_schema.getOrderedNames())
+        # print('')
         
         snr = group.get((sourceFluxField+"_snr"))
         sourcesnr += list(snr)
@@ -179,7 +176,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         MeanPsf_fwhm = np.mean(psf_fwhm)
         grpMeanPsf_fwhm.append(MeanPsf_fwhm)
 
-      #  print(' psf_fwhm', psf_fwhm)
+        # print(' psf_fwhm', psf_fwhm)
         MeanRA = np.mean(RA)
         MeanDec = np.mean(Dec)
 
@@ -205,14 +202,11 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
         ccds += list(group.get('ccd'))
 
-
         # for suffix in BRIGHTS:
         #     var_dra='dra'+'_'+suffix
         #     var_ddec='ddec'+'_'+suffix
         #     var_grpMeanRAcosdec=' grpMeanRAcosdec'+'_'+suffix
         #     var_grpMeanDec='grpMeanDec'+'_'+suffix
-      
-
 
         # test grandes snr
        # if medsnr>100:
@@ -230,12 +224,9 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
        #     plt.hist(psf_fwhm, bins=nbn)
        #     plt.title(' psf_fwhm')
        #     plt.show()
-            
-    
 
     
     bright, = np.where(np.asarray(medsnr) > brightSnr)
-   # bright2, = np.where(np.asarray(snr) > brightSnr) # ???  # vient de goodPsfSnr = goodMatches.aggregate(np.median, field=psfSnrKey) dans validate.py# 
 
     groupRMSracosdec_bright = np.array(groupRMSracosdec)[bright]
     groupRMSdec_bright = np.array(groupRMSdec)[bright]
@@ -255,8 +246,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     Psf_fwhm = np.array(Psf_fwhm)
 
     #brightallsnr, = np.where(np.asarray(sourcesnr) > brightSnr)
-    brightallsnr, = np.where(np.asarray(medsnrlong) > brightSnr) #pour avoir le meme cut sur les snr medianes
-
+    brightallsnr, = np.where(np.asarray(medsnrlong) > brightSnr) #pour avoir des plots comparables (meme cut sur les snr medianes)
 
     plt.close('all')
 
@@ -266,18 +256,13 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     histB = plt.hist(Psf_fwhm[brightallsnr] ,histtype ='stepfilled',alpha=0.8,color='r')
     plt.axvline(np.median(Psf_fwhm), 0, 1, linewidth=2, color='blue', label='Median='+str(int(np.median(Psf_fwhm)*digits)/digits)+'as')
     plt.axvline(np.median(Psf_fwhm[brightallsnr]), 0, 1, linewidth=2, color='red', label='Median bright='+str(int(np.median(Psf_fwhm[brightallsnr] )*digits)/digits)+'as')
- 
     plt.xlabel('psf fwhm (as)')
     plt.ylabel('# / bin')
     plt.legend(prop={'size':sizelegend})
     if zoom:
-    
         plt.ylim(0., max( histB[0]))
     plotPath = outputPrefix+'PsfFwhmvshist.png'
     plt.savefig(plotPath, format="png")
-
-
-
 
 
     plt.figure(figsize=(12,12))
@@ -306,7 +291,6 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plotPath = outputPrefix+'PsfFwhmvsdeltaDec.png'
     plt.savefig(plotPath, format="png")
 
-    #plt.show()
 
     plt.close('all')
     plt.figure()
@@ -433,24 +417,21 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         plt.ylim(0., max( histB[0]))
     plotPath = outputPrefix+'DistanceRMS.png'
     plt.savefig(plotPath, format="png")
-   # plt.show()
-    print('lenccd', len(ccds))
-    print('lenddec',len(deltaDecs))
-    print('len fluxmag0',len(FluxMag0s))
-    #     FluxMag0Errs
-   # plt.figure() #test
-   # plt.plot( FluxMag0s)
-  #  plt.title('FluxMag0')
-  #  plt.show()
+
     if zoom:
         return
 
-  #  print('ccd',ccds)
-    print("LONGUEUR DELTARAS", len(deltaRAcosdecs))
-    print("LONGUEUR SOURCEMAG", len(sourcemag))
-    print("LONGUEUR sourceSNR", len(sourcesnr))
-    #faire un script pour sortir la med et rms en fonction du temps
+    # quelques prints
+    print('Nombre total de sources :',  len(Psf_fwhm))
+    print('Nombre total de sources ayant passe le cut median de SNR (bright) :',  len(np.array(Psf_fwhm)[brightallsnr]))
+    print('Nombre total de groupes :',  len(grpMeanPsf_fwhm))
+    print('Nombre total de groupes ayant passe le cut median de SNR (bright) :',  len(np.array(grpMeanPsf_fwhm)[bright]))
+    #  print('ccd',ccds)
+    #  print("LONGUEUR DELTARAS", len(deltaRAcosdecs))
+    #  print("LONGUEUR SOURCEMAG", len(sourcemag))
+    #  print("LONGUEUR sourceSNR", len(sourcesnr))
 
+    #### astrometry and photometry vs time ####
     times=[]
     dic_time={}
     for i in range(len(deltaRAcosdecs)):
@@ -459,32 +440,25 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
          dic_time[goodmjd[i]]['ddec']=[]
          dic_time[goodmjd[i]]['sourcedmag']=[]
          dic_time[goodmjd[i]]['sourcesnr']=[]
-
          dic_time[goodmjd[i]]['FluxMag0s']=[]
          dic_time[goodmjd[i]]['FluxMag0Errs']=[]
-
 
     for i in range(len(deltaRAcosdecs)):
          dic_time[goodmjd[i]]['dra'].append(deltaRAcosdecs[i])
          dic_time[goodmjd[i]]['ddec'].append(deltaDecs[i])
          dic_time[goodmjd[i]]['sourcedmag'].append(sourcedmag[i])
          dic_time[goodmjd[i]]['sourcesnr'].append(sourcesnr[i])
-
          dic_time[goodmjd[i]]['FluxMag0s'].append(FluxMag0s[i])
          dic_time[goodmjd[i]]['FluxMag0Errs'].append(FluxMag0Errs[i])
-
 
     for time in dic_time.keys():
          times.append(time)
          dic_time[time]['dra_med'] = np.median(dic_time[time]['dra'])
          dic_time[time]['dra_rms'] = np.std(dic_time[time]['dra'])
-
          dic_time[time]['ddec_med'] = np.median(dic_time[time]['ddec'])
          dic_time[time]['ddec_rms'] = np.std(dic_time[time]['ddec'])
-
          dic_time[time]['sourcedmag_med'] = np.median(dic_time[time]['sourcedmag'])
          dic_time[time]['sourcedmag_rms'] = np.std(dic_time[time]['sourcedmag'])
-
          dic_time[time]['sourcesnr_med'] = np.median(dic_time[time]['sourcesnr'])
          dic_time[time]['sourcesnr_rms'] = np.std(dic_time[time]['sourcesnr']) # barre err inutile
          dic_time[time]['FluxMag0s_mean'] = np.mean(dic_time[time]['FluxMag0s'])
@@ -520,7 +494,6 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     #plt.xlabel('time (mjd)')
     ax2.set_title('RMS mag in function of time')
     ax2.legend(prop={'size':sizelegend})
-
     for time in dic_time.keys():
          ax3.scatter(time, dic_time[time]['sourcesnr_med'],alpha=0.85, marker='o', color='k') #
         # ax3.errorbar(time,  dic_time[time]['sourcesnr_med'], xerr=None, yerr=dic_time[time]['sourcesnr_rms'],linestyle='',alpha=0.75, marker='o', color='b')
@@ -556,16 +529,12 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
          ccds.append(ccd)
          dic_ccd[ccd]['dra_med'] = np.median(dic_ccd[ccd]['dra'])
          dic_ccd[ccd]['dra_rms'] = np.std(dic_ccd[ccd]['dra'])
-
          dic_ccd[ccd]['ddec_med'] = np.median(dic_ccd[ccd]['ddec'])
          dic_ccd[ccd]['ddec_rms'] = np.std(dic_ccd[ccd]['ddec'])
-
          dic_ccd[ccd]['sourcedmag_med'] = np.median(dic_ccd[ccd]['sourcedmag'])
          dic_ccd[ccd]['sourcedmag_rms'] = np.std(dic_ccd[ccd]['sourcedmag'])
-
          dic_ccd[ccd]['sourcesnr_med'] = np.median(dic_ccd[ccd]['sourcesnr'])
-         dic_ccd[ccd]['sourcesnr_rms'] = np.std(dic_ccd[ccd]['sourcesnr'])# barre err totalement inutile
- 
+         dic_ccd[ccd]['sourcesnr_rms'] = np.std(dic_ccd[ccd]['sourcesnr'])# barre err inutile
          dic_ccd[ccd]['FluxMag0s_mean'] = np.mean(dic_ccd[ccd]['FluxMag0s'])
          dic_ccd[ccd]['FluxMag0s_med'] = np.median(dic_ccd[ccd]['FluxMag0s'])
          dic_ccd[ccd]['FluxMag0s_rms'] = np.std(dic_ccd[ccd]['FluxMag0s'])
@@ -574,7 +543,6 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
          dic_ccd[ccd]['FluxMag0Errs_rms'] = np.std(dic_ccd[ccd]['FluxMag0Errs'])
  
     f, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False, figsize=(16,9))
-
     for ccd in dic_ccd.keys():
          ax1.scatter(ccd, dic_ccd[ccd]['dra_rms'],alpha=0.85, marker='o', color='b')
          ax1.scatter(ccd, dic_ccd[ccd]['ddec_rms'],alpha=0.85, marker='o', color='r')
@@ -584,14 +552,12 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     ax1.set_xlim(min(ccds)-(max(ccds)-min(ccds))/30., max(ccds)+(max(ccds)-min(ccds))/30.)
     ax1.set_ylabel('RMS (mas)')
     ax1.set_title('RMS Dra/Ddec in function of CCD')
-
     for ccd in dic_ccd.keys():
          ax2.scatter(ccd, dic_ccd[ccd]['sourcedmag_rms'],alpha=0.85, marker='o', color='g') #
     ax2.scatter([], [], marker='o', color='g',label='source $\Delta$Magnitude RMS') #
     ax2.set_ylabel('RMS $\Delta$Mag (mmag)')
     ax2.set_title('RMS mag in function of CCD')
     ax2.legend(prop={'size':sizelegend})
-
     for ccd in dic_ccd.keys():
          ax3.scatter(ccd, dic_ccd[ccd]['sourcesnr_med'],alpha=0.85, marker='o', color='k') #
          # ax3.errorbar(ccd,  dic_ccd[ccd]['sourcesnr_med'], xerr=None, yerr=dic_ccd[ccd]['sourcesnr_rms'],linestyle='',alpha=0.75, marker='o', color='b')
@@ -602,7 +568,8 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     ax3.legend(prop={'size':sizelegend})
     plotPath = outputPrefix+'AstrometryVsCcd.png'
     plt.savefig(plotPath, format="png")
-    s=100
+
+    s=100 # taille points
     plt.figure( figsize=(14,5))
     plt.title('FluxMag0s vs ccd')
     plt.xlabel('ccd')
@@ -611,7 +578,6 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
         plt.scatter(ccd, dic_ccd[ccd]['FluxMag0s_med'],s=s,alpha=0.95, marker='+', color='k') 
         plt.scatter(ccd, dic_ccd[ccd]['FluxMag0s_mean'],s=s,alpha=0.95, marker='+', color='r') 
         #plt.scatter(ccd, dic_ccd[ccd]['FluxMag0Errs_med'],alpha=0.85, marker='o', color='k') 
-
     plt.scatter([], [], marker='+',s=s, color='k',label='Median')
     plt.scatter([], [], marker='+',s=s, color='r',label='Mean')
     plt.legend()
@@ -630,7 +596,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.legend()
     plotPath = outputPrefix+'ZpVsTime.png'
     plt.savefig(plotPath, format="png")
-    # plt.show()
+ 
 
 
 def plotAstrometry(dist, mag, snr, fit_params=None, brightSnr=100,

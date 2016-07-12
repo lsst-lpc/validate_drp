@@ -271,7 +271,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     plt.ylabel('# / bin')
     plt.legend(prop={'size':sizelegend})
     if zoom:
-        plt.xlim(0.,55.)
+    
         plt.ylim(0., max( histB[0]))
     plotPath = outputPrefix+'PsfFwhmvshist.png'
     plt.savefig(plotPath, format="png")

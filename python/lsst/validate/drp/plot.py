@@ -249,6 +249,37 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     brightallsnr, = np.where(np.asarray(medsnrlong) > brightSnr) #pour avoir des plots comparables (meme cut sur les snr medianes)
 
     plt.close('all')
+    plt.figure(figsize=(12,12))
+    if zoom:
+        bri,=np.where(np.array(medsnr) >= brightSnr)
+        plt.hist(np.array(medsnr)[bri],bins=50, histtype ='stepfilled', alpha=0.8, color='b',label='Median='+str(int(np.median(np.array(medsnr)[bri])*digits)/digits)+' \nRMS='+str(int(np.std(np.array(medsnr)[bri])*digits)/digits)+' \nmin='+str(min(np.array(medsnr)[bri]))+' \nmax='+str(max(np.array(medsnr)[bri])))
+        plt.title('SNR median distribution (focus on bright median SNR)')
+    else :
+        plt.hist(medsnr,bins=50, histtype ='stepfilled', alpha=0.8, color='b',label='Median='+str(int(np.median(medsnr)*digits)/digits)+' \nRMS='+str(int(np.std(medsnr)*digits)/digits)+' \nmin='+str(min(np.array(medsnr)))+' \nmax='+str(max(np.array(medsnr))))
+        plt.title('SNR median distribution')
+    plt.xlabel('median snr')
+    plt.ylabel('# / bin')
+    plt.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'SNRgroupMedian.png'
+    plt.savefig(plotPath, format="png")
+
+
+    plt.figure(figsize=(12,12))
+    if zoom:
+        bri,= np.where(np.array(sourcesnr) >= brightSnr)
+        plt.hist(np.array(sourcesnr)[bri], bins=50, histtype ='stepfilled', alpha=0.8, color='b',label='Median='+str(int(np.median(np.array(sourcesnr)[bri])*digits)/digits)+' \nRMS='+str(int(np.std(np.array(sourcesnr)[bri])*digits)/digits)+' \nmin='+str(min(np.array(sourcesnr)[bri]))+' \nmax='+str(max(np.array(sourcesnr)[bri])))
+        plt.title('SNR sources distribution (focus on bright median SNR)')
+    else :
+        plt.hist(sourcesnr, bins=50, histtype ='stepfilled', alpha=0.8, color='b',label='Median='+str(int(np.median(sourcesnr)*digits)/digits)+' \nRMS='+str(int(np.std(sourcesnr)*digits)/digits)+' \nmin='+str(min(np.array(sourcesnr)))+' \nmax='+str(max(np.array(sourcesnr))))
+        plt.title('SNR sources distribution')
+    plt.xlabel('source snr')
+    plt.ylabel('# / bin')
+    plt.legend(prop={'size':sizelegend})
+    plotPath = outputPrefix+'SNRsources.png'
+    plt.savefig(plotPath, format="png")
+   # plt.show()
+
+
 
     plt.figure(figsize=(12,12))
     plt.title('PSF FWHM')

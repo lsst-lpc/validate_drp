@@ -31,6 +31,8 @@ from lsst.afw.table import MultiMatch, SimpleRecord, GroupView
 from lsst.afw.fits.fitsLib import FitsError
 import lsst.daf.persistence as dafPersist
 import lsst.pipe.base as pipeBase
+import pickle
+import shelve
 
 def sourceFlux(sourceFluxField = 'base_PsfFlux'): # 'base_CircularApertureFlux_6_0'):#'base_PsfFlux'):#
     return sourceFluxField
@@ -280,15 +282,20 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
                 print('flux negatif', flux)
                 return False
             # Reject objects with too large magnitude
-
-            mag = src.get(psfMagKey)
-            magErr = src.get(psfMagErrKey)
-            fluxErr = src.get(fluxErrKey)
- 
-            # if mag > maxMag or magErr > 0.1 or flux/fluxErr < 10: # 
+           # maxMag=22.5
+           # mag = src.get(psfMagKey)
+           # magErr = src.get(psfMagErrKey)
+           # fluxErr = src.get(fluxErrKey)
+            #if mag > maxMag or magErr > 0.1 or flux/fluxErr < 10: # 
           #  if magErr > 0.1 or flux/fluxErr < 10:
-          #      #print('mag or magERR rejected')
-          #      return False
+                #print('mag or magERR rejected')
+            #    return False
+
+            # cut snr 100 direct (pour le test dans /test_validation_phVisits_cutssnr100direct/ ) :
+           # SNR = src.get(psfSnrKey)
+           # if SNR<100:
+           #     return False
+
             # Reject blends (?)
             if src.get(parentKey) != 0:
                 print("parentKey Rejection")
@@ -677,7 +684,17 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
                        fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)
-
+    if makeJson: #test
+        outfile=open('structgoodMatches.pkl', 'w')
+       # cPickle.dump(struct.goodMatches, outfile)
+       ## pickle#.dump(struct, outfile)
+       # outfile.close()
+        #outfile = outputPrefix + "structgoodMatches.shelve"
+        #saveKpmToJson(struct.goodMatches, outfile)
+      #  shelve_goodMatches = shelve.open('structgoodMatches.shelve')
+       # shelve_goodMatches['good'] = struct.goodMatches
+      #  shelve_goodMatches.close()
+        
     # magKey = allMatches.schema.find("base_PsfFlux_mag").key
     magKey = allMatches.schema.find(sourceFluxField+"_mag").key
 

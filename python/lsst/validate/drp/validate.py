@@ -339,6 +339,86 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     #   by going with the default `field=None`.
     dist = goodMatches.aggregate(positionRms)
 
+    # ajout d'un ndarray contenant toutes les sources
+    print('======================================================================')
+
+    data_titles=['visit','ccd','coord_ra','coord_dec','MJD-OBS',sourceFluxField+'_snr',sourceFluxField+'_flux',sourceFluxField+'_fluxSigma',sourceFluxField+'_mag',sourceFluxField+'_magerr','Nb_group','id','PSF-FWHM','FLUXMAG0','FLUXMAG0ERR', 'MeanGrpRa', 'MeanGrpDec', 'MedGrpSnr']
+    
+    Dtype=[]
+    nbsources=100
+
+    for title in data_titles:
+        if title =='visit' or title=='ccd' or title=='Nb_group' or title=='id':
+            Dtype.append((title,np.int))
+        else:
+            Dtype.append((title,np.float))
+
+    sources_ndarray = np.zeros(nbsources, dtype = Dtype)
+ 
+    Nb_group=0
+    compteur_sources=0
+    
+    for group in goodMatches.groups:
+        snr = group.get(sourceFluxField+"_snr")
+        RA = group.get('coord_ra')
+        Dec = group.get('coord_dec')
+        psf_fwhm = group.get('PSF-FWHM')
+        MeanPsf_fwhm = np.mean(psf_fwhm)
+        MeanRA = np.mean(RA)
+        MeanDec = np.mean(Dec)
+        FluxMag0 = group.get('FLUXMAG0')
+        FluxMag0Err = group.get('FLUXMAG0ERR')
+        visit= group.get('visit')
+        ccd = group.get('ccd')
+        MedSnr = np.median(snr)
+
+        for src in group:# range(len(RA)):
+           # print( i)
+           # print(' RA[i]', RA[i])
+            sources_ndarray['id'][compteur_sources] = src.get('id')
+            sources_ndarray['visit'][compteur_sources] = src.get('visit')
+            sources_ndarray['coord_ra'][compteur_sources] = src.get('coord_ra')
+            sources_ndarray['coord_dec'][compteur_sources] = src.get('coord_dec')
+            sources_ndarray['ccd'][compteur_sources] = src.get('ccd')
+            sources_ndarray['MJD-OBS'][compteur_sources] = src.get('MJD-OBS')
+            sources_ndarray['PSF-FWHM'][compteur_sources] = src.get('PSF-FWHM')
+            sources_ndarray[sourceFluxField+'_snr'][compteur_sources] = src.get(sourceFluxField+'_snr')
+            sources_ndarray[sourceFluxField+'_flux'][compteur_sources] = src.get(sourceFluxField+'_flux')
+            sources_ndarray[sourceFluxField+'_fluxSigma'][compteur_sources] = src.get(sourceFluxField+'_fluxSigma')
+            sources_ndarray[sourceFluxField+'_mag'][compteur_sources] = src.get(sourceFluxField+'_mag')
+            sources_ndarray[sourceFluxField+'_magerr'][compteur_sources] = src.get(sourceFluxField+'_magerr')
+            sources_ndarray['Nb_group'][compteur_sources] =  Nb_group
+            sources_ndarray['FLUXMAG0'][compteur_sources] = src.get('FLUXMAG0')
+            sources_ndarray['FLUXMAG0ERR'][compteur_sources] = src.get('FLUXMAG0ERR')
+            
+            sources_ndarray['MeanGrpRa'][compteur_sources] =  MeanRA 
+            sources_ndarray['MeanGrpDec'][compteur_sources] =  MeanDec
+            sources_ndarray['MedGrpSnr'][compteur_sources] =  MedSnr 
+            # sources_ndarray[][compteur_sources] = src.get()
+
+            compteur_sources+=1
+            if compteur_sources >= len(sources_ndarray):
+                sources_ndarray = np.resize(sources_ndarray, compteur_sources+100)
+
+        Nb_group+=1
+
+    sources_ndarray = np.resize(sources_ndarray, compteur_sources)
+    #print('Dtype', Dtype)
+    #print('set(visits)',set(sources_ndarray['visit']))
+    print('Dtype sources_ndarray.dtype', sources_ndarray.dtype)
+    #print('shape ndarray', np.shape(sources_ndarray))
+
+    print(' ndarray', sources_ndarray)
+
+
+    # extraction du ndarray dans un fichier pkl
+    filename='sources_ndarray_grp_'+str(len(set(sources_ndarray['visit'])))+'visits.pkl'
+    output_file=open(filename, 'wb')
+    pickle.dump(sources_ndarray, output_file)
+    output_file.close()
+    print('sources_ndarray sauved \n')
+    print( '======================================================================')
+
     return pipeBase.Struct(
        # name="structgoodMatches", #ajout pour le json
         mag = goodPsfMag,

@@ -810,7 +810,6 @@ def calcRmsDistances(groupView, annulus, magRange=None, verbose=False):
         plt.ylabel('#/bin')
         plotPath = 'AstromMeanDists'+str(D)+'.png'
         plt.savefig(plotPath, format="png")
-        
 
         plt.figure(figsize=(11,7))
         plt.title('rmsDist (equiv plot AMx) pour D='+str(D))

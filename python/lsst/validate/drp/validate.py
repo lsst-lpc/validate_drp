@@ -60,9 +60,6 @@ commentsFluxFields = ['PSF','CircularAperture 6_0']
 
 
 
-
-
-
 def loadAndMatchData(repo, dataIds,
                      matchRadius=afwGeom.Angle(1, afwGeom.arcseconds),
                      verbose=False, MetaData=False):
@@ -343,6 +340,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     dist = goodMatches.aggregate(positionRms)
 
     return pipeBase.Struct(
+       # name="structgoodMatches", #ajout pour le json
         mag = goodPsfMag,
         magerr = goodPsfMagErr,
         magrms = goodPsfMagRms,
@@ -678,14 +676,25 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
 
         plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, struct.goodMatches, mmagrms,
                                    fit_params=astromStruct.params, srcFluxField=sourceFluxField,
-                                   brightSnr=brightSnr, outputPrefix=outputPrefix, zoom=True)
+                                   brightSnr=brightSnr, outputPrefix=outputPrefix, zoom=True, dico=True)
 
 
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
                        fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)
-    if makeJson: #test
-        outfile=open('structgoodMatches.pkl', 'w')
+   # if makeJson: #test
+     #   outfile=open('structgoodMatches.pkl', 'w')
+
+   #     structure= pipeBase.Struct(name="structgoodMatches",
+                     #              model_name="photErrModel",
+                      #             doc=photErrModel.__doc__,
+                      #             params=fit_params,
+                      #             photRmsScatter=photScatter)
+
+        #outfile = outputPrefix + "%sAAAAA.json" % struct.name
+        #saveKpmToJson(struct, outfile) # marche pas "is not JSON serializable"
+     #   save_obj(struct, 'GOODMATCHES')  # marche pas, "TypeError: can't pickle SwigPyObject objects"
+
        # cPickle.dump(struct.goodMatches, outfile)
        ## pickle#.dump(struct, outfile)
        # outfile.close()

@@ -27,6 +27,15 @@ import numpy as np
 import astropy.units
 import lsst.pipe.base as pipeBase
 
+import pickle
+
+def save_pkl(obj, name):
+    with open( name + '.pkl', 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def load_pkl(name):
+    with open( name + '.pkl', 'rb') as f:
+        return pickle.load(f)
 
 class DatumSerializer(object):
     """Serializer for an annotated data point.

@@ -24,7 +24,7 @@ import matplotlib.pylab as plt
 import numpy as np
 import scipy.stats
 from .check import fitExp, fitAstromErrModel, fitPhotErrModel, expModel, astromErrModel, photErrModel
-
+from .io import load_pkl, save_pkl
 
 # Plotting defaults
 plt.rcParams['axes.linewidth'] = 2
@@ -98,7 +98,7 @@ def plotVisitVsTime(goodMatches,
 def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
                                fit_params=None, brightSnr=100, srcFluxField='base_PsfFlux',
                                outputPrefix="",
-                               zoom=False):
+                               zoom=False, dico=False):
 
     sourceFluxField=srcFluxField
     sizelegend=12 # taille des legendes
@@ -114,7 +114,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     goodmjd = []
     radToDeg = 180./np.pi
     degToArcs = 3600.
-    radToArcs = radToDeg* degToArcs
+    radToArcs = radToDeg*degToArcs
 
     deltaRAcosdecs = [] #goodMatches.aggregate(np.ones,'coord_ra')
     deltaDecs = [] # goodMatchesaggregate(np.ones,'coord_dec')
@@ -137,14 +137,18 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
     medsnr = []
     medsnrlong = []
     Psf_fwhm = []
+    visits = []
     grpMeanPsf_fwhm = []
+    if dico:
+        dic={}
+        Nb_group=0
     # grpMeanShapex  = []### test shape
 
     # TO DO : implementer une coupure sur les sources individuellement
     # BRIGHTS=['bright', 'brightmean']
     #  for suffix in BRIGHTS:
     #      exec('psf_fwhm'+'_'+suffix +"=[]")
-
+    
     for group in goodMatches.groups:
         # group_schema=group.getSchema()
         # print('group_schema=group.getSchema()',group_schema.getOrderedNames())
@@ -199,9 +203,25 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
         FluxMag0s += list(group.get('FLUXMAG0'))
         FluxMag0Errs += list(group.get('FLUXMAG0ERR'))
-
+        visits += list(group.get('visit'))
         ccds += list(group.get('ccd'))
+        if dico:
+            dic[ Nb_group]={}
+            dic[ Nb_group]['RA'] = RA
+            dic[ Nb_group]['Dec'] = Dec
+            dic[ Nb_group]['MeanRA'] = MeanRA
+            dic[ Nb_group]['MeanDec'] = MeanDec
+            dic[ Nb_group]['snr'] = snr 
+            dic[ Nb_group]['medsnr'] = np.median(snr)
+            dic[ Nb_group]['visits'] = group.get('visit')
+            dic[ Nb_group]['MJD-OBS'] = group.get('MJD-OBS')
+            dic[ Nb_group]['psf_fwhm'] = psf_fwhm
+            dic[ Nb_group]['mag'] = group.get(sourceFluxField+"_mag")
 
+            
+            Nb_group+=1
+    
+        # print('medsnrlong',meds
         # for suffix in BRIGHTS:
         #     var_dra='dra'+'_'+suffix
         #     var_ddec='ddec'+'_'+suffix
@@ -225,7 +245,15 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
        #     plt.title(' psf_fwhm')
        #     plt.show()
 
-    
+    if dico:
+       # print(' dicrgrfgerzbgehjrgeruzfgehrzgvheizgheriugheirughioerzgioerhgehjrzgihezrgijhgt',dic.keys())
+        nb_elements_par_visites = dict([(k, visits.count(k)) for k in set(visits)])
+        print('nb_elements_par_visites', nb_elements_par_visites)
+        print('nb_elements_par_visites.keys()', nb_elements_par_visites.keys())
+        nb_differentes_visites = len(nb_elements_par_visites.keys())
+        print('nb_differentes_visites', nb_differentes_visites  )
+        save_pkl(dic, 'GroupDico_'+str(nb_differentes_visites)+'visits')
+        print('GroupDico saved')
     bright, = np.where(np.asarray(medsnr) > brightSnr)
 
     groupRMSracosdec_bright = np.array(groupRMSracosdec)[bright]

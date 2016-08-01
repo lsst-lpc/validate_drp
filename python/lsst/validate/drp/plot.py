@@ -660,6 +660,7 @@ def plotAstromPhotRMSvsTimeCcd(dist, mag, snr, goodMatches, mmagrms,
 
 def plotAstrometry(dist, mag, snr, fit_params=None, brightSnr=100,
                    outputPrefix=""):
+
     """Plot angular distance between matched sources from different exposures.
 
     Creates a file containing the plot with a filename beginning with `outputPrefix`.

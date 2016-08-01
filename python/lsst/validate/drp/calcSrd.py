@@ -127,11 +127,13 @@ def calcPA1(matches, magKey, numRandomShuffles=50, verbose=False):
     >>> print("LSST SRD Key Performance Metric %s" % pa1.name)
     >>> print("The RMS was %.3f+-%.3f, the IQR was %.3f+-%.3f" % (pa1.rms, pa1.iqr, pa1.rmsStd, pa1.iqrStd))
     """
-
+    # numRandomShuffles=10 # test
     pa1Samples = [doCalcPA1(matches, magKey) for n in range(numRandomShuffles)]
     rmsPA1 = np.array([pa1.rms for pa1 in pa1Samples])
+  #  print(' len(rmsPA11)',len(rmsPA1))
     iqrPA1 = np.array([pa1.iqr for pa1 in pa1Samples])
-
+  #  print('pa1Samples',pa1Samples)
+  
     PA1 = np.mean(iqrPA1)
     return pipeBase.Struct(name='PA1',
                            PA1=PA1, pa1Units='mmag',
@@ -158,12 +160,20 @@ def doCalcPA1(groupView, magKey):
     -------
     pipeBase.Struct
        The RMS, inter-quartile range,
-       differences between pairs of observations, mean mag of each object.
+       differences beteen pairs of observations, mean mag of each object.
     """
 
     magDiffs = groupView.aggregate(getRandomDiffRmsInMas, field=magKey)
+    
+  #  print('len(groupView)',groupView)
+   # print('len(magDiffs)',len(magDiffs))
     magMean = groupView.aggregate(np.mean, field=magKey)
     rmsPA1, iqrPA1 = computeWidths(magDiffs)
+
+  #  plt.close('all')
+  #  plt.figure()
+  #  plt.hist(magDiffs)
+  #  plt.show()
     return pipeBase.Struct(rms=rmsPA1, iqr=iqrPA1,
                            rmsUnits='mmag', iqrUnits='mmag',
                            magDiffs=magDiffs, magMean=magMean,
@@ -270,6 +280,7 @@ def calcPA2(groupView, magKey, defaultLevel='design', verbose=False):
     PA2_spec = srdSpec.PA2
 
     magDiffs = groupView.aggregate(getRandomDiffRmsInMas, field=magKey)
+   # print('lenmagdiffs', len(magDiffs), 'magDiffs',magDiffs)
     PF1_percentiles = 100 - np.asarray([srdSpec.PF1[l] for l in srdSpec.levels])
     PA2_measured = dict(zip(srdSpec.levels,
                             np.percentile(np.abs(magDiffs), PF1_percentiles)))

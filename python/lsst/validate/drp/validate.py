@@ -342,7 +342,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
     # ajout d'un ndarray contenant toutes les sources
     print('======================================================================')
 
-    data_titles=['visit','ccd','coord_ra','coord_dec','MJD-OBS',sourceFluxField+'_snr',sourceFluxField+'_flux',sourceFluxField+'_fluxSigma',sourceFluxField+'_mag',sourceFluxField+'_magerr','Nb_group','id','PSF-FWHM','FLUXMAG0','FLUXMAG0ERR', 'MeanGrpRa', 'MeanGrpDec', 'MedGrpSnr']
+    data_titles=['visit', 'ccd', 'coord_ra', 'coord_dec', 'MJD-OBS', sourceFluxField+'_snr', sourceFluxField+'_flux', sourceFluxField+'_fluxSigma', sourceFluxField+'_mag', sourceFluxField+'_magerr', 'Nb_group','id', 'PSF-FWHM', 'FLUXMAG0', 'FLUXMAG0ERR',  'MeanGrpRa', 'MeanGrpDec', 'MedGrpSnr', 'base_ClassificationExtendedness_value']
     
     Dtype=[]
     nbsources=100
@@ -387,6 +387,7 @@ def analyzeData(allMatches, safeSnr=50.0, verbose=False):
             sources_ndarray[sourceFluxField+'_fluxSigma'][compteur_sources] = src.get(sourceFluxField+'_fluxSigma')
             sources_ndarray[sourceFluxField+'_mag'][compteur_sources] = src.get(sourceFluxField+'_mag')
             sources_ndarray[sourceFluxField+'_magerr'][compteur_sources] = src.get(sourceFluxField+'_magerr')
+            sources_ndarray['base_ClassificationExtendedness_value'][compteur_sources] = src.get('base_ClassificationExtendedness_value')
             sources_ndarray['Nb_group'][compteur_sources] =  Nb_group
             sources_ndarray['FLUXMAG0'][compteur_sources] = src.get('FLUXMAG0')
             sources_ndarray['FLUXMAG0ERR'][compteur_sources] = src.get('FLUXMAG0ERR')
@@ -746,7 +747,7 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         plotAstrometry(dist, magavg, struct.snr,
                        fit_params=astromStruct.params,
                        brightSnr=brightSnr, outputPrefix=outputPrefix)
-
+        
         plotVisitVsTime(struct.goodMatches,
                         outputPrefix=outputPrefix)
  
@@ -757,8 +758,11 @@ def runOneFilter(repo, visitDataIds, brightSnr=100,
         plotAstromPhotRMSvsTimeCcd(dist, magavg, struct.snr, struct.goodMatches, mmagrms,
                                    fit_params=astromStruct.params, srcFluxField=sourceFluxField,
                                    brightSnr=brightSnr, outputPrefix=outputPrefix, zoom=True, dico=True)
-
-
+        print('')
+        print('astromStruct.params,',astromStruct.params)
+        print('')
+        print('photStruct.params',photStruct.params)
+        print('')
         plotPhotometry(magavg, struct.snr, mmagerr, mmagrms,
                        fit_params=photStruct.params,
                        brightSnr=brightSnr, filterName=filterName, outputPrefix=outputPrefix)
